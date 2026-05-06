@@ -7,13 +7,17 @@ const articles = JSON.parse(fs.readFileSync("./data/articles.json", "utf-8"));
 const homeTemplate = fs.readFileSync("./templates/index-template.html", "utf-8");
 const articleTemplate = fs.readFileSync("./templates/article-template.html", "utf-8");
 
-const distDir = "./dist";
+const distDir = path.resolve(__dirname, "dist");
 const articleOut = path.join(distDir, "articles");
 
-// =========================================================
-// PREPARE DIRECTORIES
-// { recursive: true } prevents errors if the folder exists
-// =========================================================
+/* =========================================================
+   0. CLEAN & PREPARE DIRECTORIES (FIXES ENOTDIR)
+========================================================= */
+if (fs.existsSync(distDir)) {
+  // force: true and recursive: true deletes 'dist' even if it's a file
+  fs.rmSync(distDir, { recursive: true, force: true });
+}
+// This recreates the full path safely
 fs.mkdirSync(articleOut, { recursive: true });
 
 /* =========================================================
@@ -23,10 +27,8 @@ function scoreArticle(article) {
   let score = 0;
   const daysOld = (Date.now() - new Date(article.datePublished)) / (1000 * 60 * 60 * 24);
 
-  // freshness boost
   score += Math.max(0, 10 - daysOld);
 
-  // quality signals
   if (article.image) score += 3;
   if (article.description && article.description.length > 50) score += 2;
   if (article.content && article.content.length > 500) score += 3;
@@ -108,12 +110,11 @@ fs.writeFileSync(
 );
 
 /* =========================================================
-   7. COPY ASSETS (ROBUST VERSION)
+   7. COPY ASSETS
 ========================================================= */
 function copyFolder(src, dest) {
   if (!fs.existsSync(src)) return;
 
-  // recursive: true ensures it won't crash if the asset folder exists
   fs.mkdirSync(dest, { recursive: true });
 
   fs.readdirSync(src, { withFileTypes: true }).forEach(entry => {

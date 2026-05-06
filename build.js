@@ -8,10 +8,12 @@ const homeTemplate = fs.readFileSync("./templates/index-template.html", "utf-8")
 const articleTemplate = fs.readFileSync("./templates/article-template.html", "utf-8");
 
 const distDir = "./dist";
-const articleOut = "./dist/articles";
+const articleOut = path.join(distDir, "articles");
 
-// ensure folders exist
-fs.mkdirSync(distDir, { recursive: true });
+// =========================================================
+// PREPARE DIRECTORIES
+// { recursive: true } prevents errors if the folder exists
+// =========================================================
 fs.mkdirSync(articleOut, { recursive: true });
 
 /* =========================================================
@@ -19,9 +21,7 @@ fs.mkdirSync(articleOut, { recursive: true });
 ========================================================= */
 function scoreArticle(article) {
   let score = 0;
-
-  const daysOld =
-    (Date.now() - new Date(article.datePublished)) / (1000 * 60 * 60 * 24);
+  const daysOld = (Date.now() - new Date(article.datePublished)) / (1000 * 60 * 60 * 24);
 
   // freshness boost
   score += Math.max(0, 10 - daysOld);
@@ -54,9 +54,7 @@ function getRelated(article, all) {
    4. BUILD ARTICLE PAGES
 ========================================================= */
 ranked.forEach(article => {
-
   const canonical = `${config.baseUrl}/articles/${article.slug}.html`;
-
   const related = getRelated(article, ranked);
 
   const html = articleTemplate
@@ -110,18 +108,19 @@ fs.writeFileSync(
 );
 
 /* =========================================================
-   7. COPY ASSETS (CRITICAL)
+   7. COPY ASSETS (ROBUST VERSION)
 ========================================================= */
 function copyFolder(src, dest) {
   if (!fs.existsSync(src)) return;
 
+  // recursive: true ensures it won't crash if the asset folder exists
   fs.mkdirSync(dest, { recursive: true });
 
-  fs.readdirSync(src).forEach(file => {
-    const srcPath = path.join(src, file);
-    const destPath = path.join(dest, file);
+  fs.readdirSync(src, { withFileTypes: true }).forEach(entry => {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
 
-    if (fs.lstatSync(srcPath).isDirectory()) {
+    if (entry.isDirectory()) {
       copyFolder(srcPath, destPath);
     } else {
       fs.copyFileSync(srcPath, destPath);
@@ -129,8 +128,7 @@ function copyFolder(src, dest) {
   });
 }
 
-// copy assets → dist
-copyFolder("./assets", "./dist/assets");
+copyFolder("./assets", path.join(distDir, "assets"));
 
 /* =========================================================
    DONE

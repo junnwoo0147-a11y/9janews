@@ -38,17 +38,11 @@ function scoreArticle(article) {
 
   if (article.image) score += 3;
 
-  if (
-    article.description &&
-    article.description.length > 50
-  ) {
+  if (article.description && article.description.length > 50) {
     score += 2;
   }
 
-  if (
-    article.content &&
-    article.content.length > 500
-  ) {
+  if (article.content && article.content.length > 500) {
     score += 3;
   }
 
@@ -84,61 +78,22 @@ ranked.forEach(article => {
   const related = getRelated(article, ranked);
 
   const html = articleTemplate
-
     .replace(/__TITLE__/g, article.title)
-
-    .replace(
-      /__DESCRIPTION__/g,
-      article.description
-    )
-
-    .replace(
-      /__IMAGE_URL__/g,
-      article.image || ""
-    )
-
-    .replace(
-      /__CONTENT__/g,
-      article.content
-    )
-
-    .replace(
-      /__INTRO_PARAGRAPH__/g,
-      article.intro || ""
-    )
-
-    .replace(
-      /__DATE_PUBLISHED__/g,
-      article.datePublished
-    )
-
-    .replace(
-      /__DATE_MODIFIED__/g,
-      article.dateModified || article.datePublished
-    )
-
-    .replace(
-      /__DISPLAY_DATE__/g,
-      new Date(article.datePublished).toDateString()
-    )
-
-    .replace(
-      /__CANONICAL_URL__/g,
-      canonical
-    )
-
+    .replace(/__DESCRIPTION__/g, article.description)
+    .replace(/__IMAGE_URL__/g, article.image || "")
+    .replace(/__CONTENT__/g, article.content)
+    .replace(/__INTRO_PARAGRAPH__/g, article.intro || "")
+    .replace(/__DATE_PUBLISHED__/g, article.datePublished)
+    .replace(/__DATE_MODIFIED__/g, article.dateModified || article.datePublished)
+    .replace(/__DISPLAY_DATE__/g, new Date(article.datePublished).toDateString())
+    .replace(/__CANONICAL_URL__/g, canonical)
     .replace(
       /__RELATED_1__/g,
-      related[0]
-        ? `articles/${related[0].slug}.html`
-        : "#"
+      related[0] ? `articles/${related[0].slug}.html` : "#"
     )
-
     .replace(
       /__RELATED_2__/g,
-      related[1]
-        ? `articles/${related[1].slug}.html`
-        : "#"
+      related[1] ? `articles/${related[1].slug}.html` : "#"
     );
 
   fs.writeFileSync(
@@ -151,17 +106,12 @@ ranked.forEach(article => {
    BUILD HOMEPAGE
 ========================================================= */
 const latest = ranked[0];
-
 const rest = ranked.slice(1);
 
 const grid = rest.map(article => `
 <div class="grid-item">
   <a href="articles/${article.slug}.html">
-    <img
-      src="${article.image}"
-      alt="${article.title}"
-      loading="lazy"
-    >
+    <img src="${article.image}" alt="${article.title}" loading="lazy">
     <h3>${article.title}</h3>
     <p>${article.description}</p>
   </a>
@@ -169,31 +119,11 @@ const grid = rest.map(article => `
 `).join("");
 
 const homepage = homeTemplate
-
-  .replace(
-    /{{LATEST_URL}}/g,
-    `articles/${latest.slug}.html`
-  )
-
-  .replace(
-    /{{LATEST_IMAGE}}/g,
-    latest.image
-  )
-
-  .replace(
-    /{{LATEST_TITLE}}/g,
-    latest.title
-  )
-
-  .replace(
-    /{{LATEST_DESCRIPTION}}/g,
-    latest.description
-  )
-
-  .replace(
-    /{{ALL_ARTICLES_GRID}}/g,
-    grid
-  );
+  .replace(/{{LATEST_URL}}/g, `articles/${latest.slug}.html`)
+  .replace(/{{LATEST_IMAGE}}/g, latest.image)
+  .replace(/{{LATEST_TITLE}}/g, latest.title)
+  .replace(/{{LATEST_DESCRIPTION}}/g, latest.description)
+  .replace(/{{ALL_ARTICLES_GRID}}/g, grid);
 
 /* =========================================================
    WRITE HOMEPAGE
@@ -204,52 +134,54 @@ fs.writeFileSync(
 );
 
 /* =========================================================
+   STATIC PAGES (/about, /privacy-policy, /authors)
+========================================================= */
+const staticPages = [
+  "about",
+  "privacy-policy",
+  "authors"
+];
+
+staticPages.forEach(page => {
+  const content = fs.readFileSync(
+    `./pages/${page}.html`,
+    "utf-8"
+  );
+
+  const outDir = path.join(distDir, page);
+
+  fs.mkdirSync(outDir, { recursive: true });
+
+  fs.writeFileSync(
+    path.join(outDir, "index.html"),
+    content
+  );
+});
+
+/* =========================================================
    GENERATE RSS FEED
 ========================================================= */
 const rssItems = ranked.map(article => `
 <item>
   <title><![CDATA[${article.title}]]></title>
-
-  <link>
-    ${config.baseUrl}/articles/${article.slug}.html
-  </link>
-
-  <guid>
-    ${config.baseUrl}/articles/${article.slug}.html
-  </guid>
-
-  <pubDate>
-    ${new Date(article.datePublished).toUTCString()}
-  </pubDate>
-
-  <description><![CDATA[
-    ${article.description || article.title}
-  ]]></description>
+  <link>${config.baseUrl}/articles/${article.slug}.html</link>
+  <guid>${config.baseUrl}/articles/${article.slug}.html</guid>
+  <pubDate>${new Date(article.datePublished).toUTCString()}</pubDate>
+  <description><![CDATA[${article.description || article.title}]]></description>
 </item>
 `).join("");
 
 const rssFeed = `<?xml version="1.0" encoding="UTF-8"?>
-
 <rss version="2.0">
-
 <channel>
-
 <title>${config.siteName}</title>
-
 <link>${config.baseUrl}</link>
-
-<description>
-Latest news from ${config.siteName}
-</description>
-
+<description>Latest news from ${config.siteName}</description>
 <language>en-us</language>
-
 ${rssItems}
-
 </channel>
 </rss>`;
 
-/* WRITE RSS */
 fs.writeFileSync(
   path.join(distDir, "feed.xml"),
   rssFeed
@@ -260,30 +192,19 @@ fs.writeFileSync(
 ========================================================= */
 const sitemapUrls = ranked.map(article => `
 <url>
-  <loc>
-    ${config.baseUrl}/articles/${article.slug}.html
-  </loc>
-
-  <lastmod>
-    ${new Date(article.datePublished).toISOString()}
-  </lastmod>
+  <loc>${config.baseUrl}/articles/${article.slug}.html</loc>
+  <lastmod>${new Date(article.datePublished).toISOString()}</lastmod>
 </url>
 `).join("");
 
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-
-<urlset
-xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 <url>
   <loc>${config.baseUrl}</loc>
 </url>
-
 ${sitemapUrls}
-
 </urlset>`;
 
-/* WRITE SITEMAP */
 fs.writeFileSync(
   path.join(distDir, "sitemap.xml"),
   sitemap
@@ -297,12 +218,8 @@ function copyFolder(src, dest) {
 
   fs.mkdirSync(dest, { recursive: true });
 
-  fs.readdirSync(src, {
-    withFileTypes: true
-  }).forEach(entry => {
-
+  fs.readdirSync(src, { withFileTypes: true }).forEach(entry => {
     const srcPath = path.join(src, entry.name);
-
     const destPath = path.join(dest, entry.name);
 
     if (entry.isDirectory()) {
@@ -313,10 +230,7 @@ function copyFolder(src, dest) {
   });
 }
 
-copyFolder(
-  "./assets",
-  path.join(distDir, "assets")
-);
+copyFolder("./assets", path.join(distDir, "assets"));
 
 /* =========================================================
    ROBOTS.TXT
@@ -336,18 +250,7 @@ fs.writeFileSync(
 /* =========================================================
    DONE
 ========================================================= */
-console.log(
-  "✅ BUILD COMPLETE — SITE GENERATED IN /dist"
-);
-
-console.log(
-  "✅ RSS FEED GENERATED"
-);
-
-console.log(
-  "✅ SITEMAP GENERATED"
-);
-
-console.log(
-  "✅ ROBOTS.TXT GENERATED"
-);
+console.log("✅ BUILD COMPLETE — SITE GENERATED IN /dist");
+console.log("✅ RSS FEED GENERATED");
+console.log("✅ SITEMAP GENERATED");
+console.log("✅ ROBOTS.TXT GENERATED");

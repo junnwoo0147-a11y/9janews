@@ -4,18 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- SEO & META -->
     <title>__TITLE__ | 9ja News Pluse</title>
     <meta name="description" content="__DESCRIPTION__">
     <meta name="robots" content="index, follow, max-snippet:-1, max-video-preview:-1">
     <meta name="googlebot" content="index, follow">
     <link rel="canonical" href="__CANONICAL_URL__">
 
-    <!-- FEEDS -->
     <link rel="alternate" type="application/rss+xml" title="9ja News RSS Feed" href="https://pluse.name.ng/feed.xml">
     <link rel="sitemap" type="application/xml" title="Sitemap" href="https://pluse.name.ng/sitemap.xml">
 
-    <!-- OPEN GRAPH -->
     <meta property="og:type" content="article">
     <meta property="og:site_name" content="9ja News Pluse">
     <meta property="og:title" content="__TITLE__">
@@ -25,7 +22,6 @@
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="675">
 
-    <!-- TWITTER -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="__TITLE__">
     <meta name="twitter:description" content="__DESCRIPTION__">
@@ -33,7 +29,6 @@
 
     <link rel="preload" as="image" href="__IMAGE_URL__">
 
-    <!-- STRUCTURED DATA -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -99,17 +94,8 @@
             align-items:center;
         }
 
-        .header-title {
-            color: #fff;
-            font-weight: 800;
-        }
-
-        .back-btn {
-            color: #fff;
-            font-size: 0.9rem;
-            opacity: 0.9;
-        }
-
+        .header-title { color: #fff; font-weight: 800; }
+        .back-btn { color: #fff; font-size: 0.9rem; opacity: 0.9; }
         .back-btn:hover { opacity: 1; }
 
         /* WRAPPER */
@@ -128,40 +114,33 @@
             box-shadow: 0 3px 12px rgba(0,0,0,0.04);
         }
 
-        h1 {
-            font-size: 2rem;
-            font-weight: 800;
-            margin-bottom: 10px;
-        }
+        h1 { font-size: 2rem; font-weight: 800; margin-bottom: 10px; }
+        .meta { font-size: 0.85rem; color: var(--muted); margin-bottom: 18px; }
+        .author-link { color: var(--green-dark); font-weight: 700; }
 
-        .meta {
-            font-size: 0.85rem;
-            color: var(--muted);
-            margin-bottom: 18px;
-        }
+        /* CONTENT */
+        .featured img { width: 100%; border-radius: 10px; margin-bottom: 15px; }
+        .article-body p { margin-bottom: 1.5rem; }
 
-        /* AUTHOR LINK */
-        .author-link {
-            color: var(--green-dark);
-            font-weight: 700;
-        }
-
-        /* IMAGE */
-        .featured img {
-            width: 100%;
-            border-radius: 10px;
-        }
-
-        /* ADS */
+        /* IMPROVED ADS - ONE BY ONE ALIGNMENT */
         .ad-slot {
-            background: linear-gradient(135deg, #eafff2, #d6ffe6);
-            border: 1px solid var(--green);
-            padding: 40px;
+            background: #fafafa;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            padding: 25px 10px;
             text-align: center;
-            margin: 20px 0;
-            border-radius: 10px;
-            font-weight: 600;
-            color: var(--green-dark);
+            margin: 30px 0;
+            font-size: 0.7rem;
+            color: var(--muted);
+            clear: both;
+        }
+        .ad-slot::before {
+            content: "ADVERTISEMENT";
+            display: block;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+            font-weight: 700;
+            opacity: 0.5;
         }
 
         /* RELATED SECTION */
@@ -171,37 +150,14 @@
             border-radius: 12px;
             color: #fff;
             box-shadow: 0 10px 25px rgba(0,255,120,0.15);
+            margin-bottom: 20px;
         }
 
-        .related h2 {
-            margin-bottom: 12px;
-            font-size: 1.1rem;
-        }
-
-        .related-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        .related-item {
-            background: rgba(255,255,255,0.15);
-            border-radius: 10px;
-            overflow: hidden;
-            backdrop-filter: blur(6px);
-        }
-
-        .related-item img {
-            width: 100%;
-            height: 120px;
-            object-fit: cover;
-        }
-
-        .related-item div {
-            padding: 10px;
-            font-size: 0.9rem;
-            font-weight: 600;
-        }
+        .related h2 { margin-bottom: 12px; font-size: 1.1rem; }
+        .related-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .related-item { background: rgba(255,255,255,0.15); border-radius: 10px; overflow: hidden; backdrop-filter: blur(6px); }
+        .related-item img { width: 100%; height: 120px; object-fit: cover; }
+        .related-item div { padding: 10px; font-size: 0.9rem; font-weight: 600; }
 
         @media(max-width:600px){
             .related-grid { grid-template-columns: 1fr; }
@@ -218,15 +174,10 @@
 
 <div class="wrapper">
 
-    <!-- ARTICLE -->
     <div class="card">
-
         <h1>__TITLE__</h1>
-
         <div class="meta">
-            By <a class="author-link" href="https://pluse.name.ng/authors/ifeanyi-okoye.html">
-                ifeanyi clement okoye
-            </a>
+            By <a class="author-link" href="https://pluse.name.ng/authors/ifeanyi-okoye.html">ifeanyi clement okoye</a>
             • __DISPLAY_DATE__
         </div>
 
@@ -234,33 +185,62 @@
             <img src="__IMAGE_URL__" alt="__TITLE__">
         </div>
 
-        <p><b>__INTRO_PARAGRAPH__</b></p>
-
-        <div>
+        <div id="article-body" class="article-body">
+            <p><b>__INTRO_PARAGRAPH__</b></p>
             __CONTENT__
         </div>
-
     </div>
 
-    <!-- AD SLOTS -->
-    <div class="ad-slot">Ad Space 1</div>
-
-    <div class="ad-slot">Ad Space 2</div>
-
-    <!-- RELATED ARTICLES (DYNAMIC ONLY) -->
     <div class="related">
-
         <h2>More stories in this category</h2>
-
         <div class="related-grid">
             __RELATED_ARTICLES_DYNAMIC__
         </div>
-
     </div>
 
-    <div class="ad-slot">Ad Space 3</div>
+    <div class="ad-slot">
+        Ad Space 3
+    </div>
 
 </div>
+
+<div id="ad-logic-1" style="display:none;">
+    <div class="ad-slot">
+        Ad Space 1
+    </div>
+</div>
+
+<div id="ad-logic-2" style="display:none;">
+    <div class="ad-slot">
+        Ad Space 2
+    </div>
+</div>
+
+<script>
+    // This script places ads one by one inside the text automatically without breaking the layout
+    document.addEventListener("DOMContentLoaded", function() {
+        const body = document.getElementById('article-body');
+        
+        if (body) {
+            const paragraphs = body.getElementsByTagName('p');
+            const ad1 = document.getElementById('ad-logic-1').innerHTML;
+            const ad2 = document.getElementById('ad-logic-2').innerHTML;
+
+            if (paragraphs.length >= 2) {
+                // Place Ad 1 after the second paragraph
+                paragraphs[1].insertAdjacentHTML('afterend', ad1);
+            }
+            
+            if (paragraphs.length >= 5) {
+                // Place Ad 2 after the fifth paragraph
+                paragraphs[4].insertAdjacentHTML('afterend', ad2);
+            } else if (paragraphs.length > 2) {
+                // If article is short (between 3 to 4 paragraphs), put Ad 2 at the end of the text
+                body.insertAdjacentHTML('beforeend', ad2);
+            }
+        }
+    });
+</script>
 
 </body>
 </html>

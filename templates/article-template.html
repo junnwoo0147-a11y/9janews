@@ -67,6 +67,7 @@
         :root {
             --green: #00d26a;
             --green-dark: #00b85c;
+            --green-glow: #00ff88;
             --bg: #f4f7f5;
             --text: #121212;
             --muted: #666;
@@ -109,17 +110,16 @@
             opacity: 0.9;
         }
 
-        .back-btn:hover {
-            opacity: 1;
-        }
+        .back-btn:hover { opacity: 1; }
 
-        /* LAYOUT */
+        /* WRAPPER */
         .wrapper {
-            max-width: 760px;
+            max-width: 780px;
             margin: 0 auto;
             padding: 90px 16px 60px;
         }
 
+        /* CARD */
         .card {
             background: var(--white);
             padding: 22px;
@@ -128,7 +128,6 @@
             box-shadow: 0 3px 12px rgba(0,0,0,0.04);
         }
 
-        /* TITLE */
         h1 {
             font-size: 2rem;
             font-weight: 800;
@@ -141,22 +140,22 @@
             margin-bottom: 18px;
         }
 
-        /* IMAGE */
-        .featured img {
-            width: 100%;
-            border-radius: 10px;
-        }
-
         /* AUTHOR LINK */
         .author-link {
             color: var(--green-dark);
             font-weight: 700;
         }
 
-        /* AD SLOTS */
+        /* IMAGE */
+        .featured img {
+            width: 100%;
+            border-radius: 10px;
+        }
+
+        /* ADS */
         .ad-slot {
-            background: #eafaf1;
-            border: 1px dashed var(--green);
+            background: linear-gradient(135deg, #eafff2, #d6ffe6);
+            border: 1px solid var(--green);
             padding: 40px;
             text-align: center;
             margin: 20px 0;
@@ -171,6 +170,7 @@
             padding: 18px;
             border-radius: 12px;
             color: #fff;
+            box-shadow: 0 10px 25px rgba(0,255,120,0.15);
         }
 
         .related h2 {
@@ -185,9 +185,10 @@
         }
 
         .related-item {
-            background: rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.15);
             border-radius: 10px;
             overflow: hidden;
+            backdrop-filter: blur(6px);
         }
 
         .related-item img {
@@ -224,7 +225,7 @@
 
         <div class="meta">
             By <a class="author-link" href="https://pluse.name.ng/authors/ifeanyi-okoye.html">
-                Ifeanyi Clement Okoye
+                ifeanyi clement okoye
             </a>
             • __DISPLAY_DATE__
         </div>
@@ -241,16 +242,15 @@
 
     </div>
 
-    <!-- AD SLOT 1 -->
+    <!-- AD SLOTS -->
     <div class="ad-slot">Ad Space 1</div>
 
-    <!-- AUTHOR AD SLOT 2 -->
     <div class="ad-slot">Ad Space 2</div>
 
-    <!-- RELATED ARTICLES (DYNAMIC) -->
+    <!-- RELATED ARTICLES (DYNAMIC ONLY) -->
     <div class="related">
 
-        <h2>More in this category</h2>
+        <h2>More stories in this category</h2>
 
         <div class="related-grid">
             __RELATED_ARTICLES_DYNAMIC__
@@ -258,7 +258,6 @@
 
     </div>
 
-    <!-- AD SLOT 3 -->
     <div class="ad-slot">Ad Space 3</div>
 
 </div>

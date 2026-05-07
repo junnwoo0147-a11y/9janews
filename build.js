@@ -1,131 +1,136 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
-// --- CONFIGURATION ---
-const SITE_URL = "https://your-domain.com"; // CHANGE THIS to your real URL
-const SITE_NAME = "Football & Music Hub";
-const OUTPUT_DIR = path.join(__dirname, 'public');
+const config = require("./site-config.js");
+const articles = JSON.parse(fs.readFileSync("./data/articles.json", "utf-8"));
 
-// --- YOUR DATA ---
-// Add your articles here. Every time you add one and push, traffic flows.
-const articles = [
-    {
-        title: "Tactical Analysis: The Future of the Number 10",
-        slug: "football-tactics-future",
-        date: new Date().toISOString(),
-        category: "Football",
-        description: "A deep dive into how modern tactics are evolving.",
-        content: "<h1>Tactics</h1><p>Modern football is changing fast...</p>"
-    }
-];
+const homeTemplate = fs.readFileSync("./templates/index-template.html", "utf-8");
+const articleTemplate = fs.readFileSync("./templates/article-template.html", "utf-8");
 
-// --- THE ENGINE ---
-if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR);
+const distDir = "./dist";
+const articleOut = path.join(distDir, "articles");
 
-function build() {
-    let rssItems = "";
-    let sitemapItems = "";
-    let newsSitemapItems = "";
+// =========================================================
+// PREPARE DIRECTORIES
+// { recursive: true } prevents errors if the folder exists
+// =========================================================
+fs.mkdirSync(articleOut, { recursive: true });
 
-    articles.forEach(art => {
-        const fullUrl = `${SITE_URL}/${art.slug}.html`;
-        const isoDate = new Date(art.date).toISOString();
+/* =========================================================
+   1. DISCOVER-LIKE SCORING SYSTEM
+========================================================= */
+function scoreArticle(article) {
+  let score = 0;
+  const daysOld = (Date.now() - new Date(article.datePublished)) / (1000 * 60 * 60 * 24);
 
-        // Create HTML Page (Kept exactly as yours)
-        const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${art.title} | ${SITE_NAME}</title>
-    <link rel="alternate" type="application/rss+xml" title="RSS" href="/feed.xml" />
-</head>
-<body>
-    <nav><a href="/">Home</a></nav>
-    <article>
-        <h1>${art.title}</h1>
-        <p><em>Category: ${art.category} | Published: ${new Date(art.date).toDateString()}</em></p>
-        ${art.content}
-    </article>
-    <footer>
-        <p>© 2026 ${SITE_NAME}</p>
-        <p><a href="https://www.newsnow.co.uk/" target="_blank">Featured on NewsNow</a></p>
-    </footer>
-</body>
-</html>`;
+  // freshness boost
+  score += Math.max(0, 10 - daysOld);
 
-        fs.writeFileSync(path.join(OUTPUT_DIR, `${art.slug}.html`), html);
+  // quality signals
+  if (article.image) score += 3;
+  if (article.description && article.description.length > 50) score += 2;
+  if (article.content && article.content.length > 500) score += 3;
 
-        // Create RSS Entry (Kept exactly as yours)
-        rssItems += `
-        <item>
-            <title>${art.title}</title>
-            <link>${fullUrl}</link>
-            <guid isPermaLink="true">${fullUrl}</guid>
-            <pubDate>${new Date(art.date).toUTCString()}</pubDate>
-            <category>${art.category}</category>
-            <description>${art.description}</description>
-        </item>`;
-
-        // Create Standard Sitemap Entry
-        sitemapItems += `
-    <url>
-        <loc>${fullUrl}</loc>
-        <lastmod>${isoDate.split('T')[0]}</lastmod>
-    </url>`;
-
-        // Create Google News Sitemap Entry
-        newsSitemapItems += `
-    <url>
-        <loc>${fullUrl}</loc>
-        <news:news>
-            <news:publication>
-                <news:name>${SITE_NAME}</news:name>
-                <news:language>en</news:language>
-            </news:publication>
-            <news:publication_date>${isoDate}</news:publication_date>
-            <news:title>${art.title}</news:title>
-        </news:news>
-    </url>`;
-    });
-
-    // Create Final RSS File
-    const rssFeed = `<?xml version="1.0" encoding="UTF-8" ?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-<channel>
-    <title>${SITE_NAME}</title>
-    <link>${SITE_URL}</link>
-    <description>Expert football analysis and music reviews.</description>
-    <language>en-us</language>
-    <atom:link href="${SITE_URL}/feed.xml" rel="self" type="application/rss+xml" />
-    ${rssItems}
-</channel>
-</rss>`;
-
-    // Create Final Standard Sitemap File
-    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-    <url>
-        <loc>${SITE_URL}/</loc>
-        <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    </url>
-    ${sitemapItems}
-</urlset>`;
-
-    // Create Final News Sitemap File (Crucial for Google Discover)
-    const newsSitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
-    ${newsSitemapItems}
-</urlset>`;
-
-    fs.writeFileSync(path.join(OUTPUT_DIR, 'feed.xml'), rssFeed);
-    fs.writeFileSync(path.join(OUTPUT_DIR, 'sitemap.xml'), sitemap);
-    fs.writeFileSync(path.join(OUTPUT_DIR, 'sitemap-news.xml'), newsSitemap);
-    
-    // Create a simple homepage so the site isn't empty
-    fs.writeFileSync(path.join(OUTPUT_DIR, 'index.html'), `<h1>${SITE_NAME}</h1><p>Check our <a href="/feed.xml">RSS Feed</a></p>`);
-
-    console.log("🚀 Build complete: HTML, RSS, Standard Sitemap, and News Sitemap generated.");
+  return score;
 }
 
-build();
+/* =========================================================
+   2. PREPARE ARTICLES
+========================================================= */
+const ranked = articles
+  .map(a => ({ ...a, score: scoreArticle(a) }))
+  .sort((a, b) => b.score - a.score);
+
+/* =========================================================
+   3. AUTO RELATED ARTICLES
+========================================================= */
+function getRelated(article, all) {
+  return all
+    .filter(a => a.slug !== article.slug)
+    .slice(0, 2);
+}
+
+/* =========================================================
+   4. BUILD ARTICLE PAGES
+========================================================= */
+ranked.forEach(article => {
+  const canonical = `${config.baseUrl}/articles/${article.slug}.html`;
+  const related = getRelated(article, ranked);
+
+  const html = articleTemplate
+    .replace(/__TITLE__/g, article.title)
+    .replace(/__DESCRIPTION__/g, article.description)
+    .replace(/__IMAGE_URL__/g, article.image || "")
+    .replace(/__CONTENT__/g, article.content)
+    .replace(/__INTRO_PARAGRAPH__/g, article.intro || "")
+    .replace(/__DATE_PUBLISHED__/g, article.datePublished)
+    .replace(/__DATE_MODIFIED__/g, article.dateModified || article.datePublished)
+    .replace(/__DISPLAY_DATE__/g, new Date(article.datePublished).toDateString())
+    .replace(/__CANONICAL_URL__/g, canonical)
+    .replace(/__RELATED_1__/g, related[0] ? `articles/${related[0].slug}.html` : "#")
+    .replace(/__RELATED_2__/g, related[1] ? `articles/${related[1].slug}.html` : "#");
+
+  fs.writeFileSync(
+    path.join(articleOut, `${article.slug}.html`),
+    html
+  );
+});
+
+/* =========================================================
+   5. BUILD HOMEPAGE (HERO + GRID)
+========================================================= */
+const latest = ranked[0];
+const rest = ranked.slice(1);
+
+const grid = rest.map(article => `
+<div class="grid-item">
+    <a href="articles/${article.slug}.html">
+        <img src="${article.image}" alt="${article.title}" loading="lazy">
+        <h3>${article.title}</h3>
+        <p>${article.description}</p>
+    </a>
+</div>
+`).join("");
+
+const homepage = homeTemplate
+  .replace(/{{LATEST_URL}}/g, `articles/${latest.slug}.html`)
+  .replace(/{{LATEST_IMAGE}}/g, latest.image)
+  .replace(/{{LATEST_TITLE}}/g, latest.title)
+  .replace(/{{LATEST_DESCRIPTION}}/g, latest.description)
+  .replace(/{{ALL_ARTICLES_GRID}}/g, grid);
+
+/* =========================================================
+   6. WRITE HOMEPAGE
+========================================================= */
+fs.writeFileSync(
+  path.join(distDir, "index.html"),
+  homepage
+);
+
+/* =========================================================
+   7. COPY ASSETS (ROBUST VERSION)
+========================================================= */
+function copyFolder(src, dest) {
+  if (!fs.existsSync(src)) return;
+
+  // recursive: true ensures it won't crash if the asset folder exists
+  fs.mkdirSync(dest, { recursive: true });
+
+  fs.readdirSync(src, { withFileTypes: true }).forEach(entry => {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      copyFolder(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  });
+}
+
+copyFolder("./assets", path.join(distDir, "assets"));
+
+/* =========================================================
+   DONE
+========================================================= */
+console.log("✅ BUILD COMPLETE — SITE GENERATED IN /dist");

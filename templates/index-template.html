@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>9ja News Pluse | Nigeria's Latest Breaking Updates</title>
+
+    <meta name="description" content="Stay updated with the latest news, sports, and trending stories in Nigeria.">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="googlebot" content="index, follow">
+    <link rel="canonical" href="https://blog.pluse.name.ng/">
+
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="9ja News Pluse">
+    <meta property="og:title" content="9ja News Pluse - Latest Updates">
+    <meta property="og:description" content="Breaking news and trending stories in Nigeria and beyond.">
+    <meta property="og:url" content="https://blog.pluse.name.ng/">
+    <meta property="og:image" content="{{LATEST_IMAGE:-https://blog.pluse.name.ng/assets/img/default-og.jpg}}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="675">
+    
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="{{LATEST_IMAGE}}">
+
+    <style>
+        :root {
+            --brand-gold: #f7d24e;
+            --site-bg: #f4f4f4;
+            --card-white: #ffffff;
+            --text-main: #1a1a1a;
+            --text-muted: #666666;
+            --border-light: #eeeeee;
+            --header-height: 56px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            background-color: var(--site-bg);
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        img { max-width: 100%; height: auto; display: block; }
+        
+        /* Global link reset to prevent blue text and underlines */
+        a { text-decoration: none; color: inherit; }
+
+        .header {
+            background-color: var(--brand-gold);
+            height: var(--header-height);
+            width: 100%;
+            position: fixed;
+            top: 0; left: 0;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 100;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+        }
+
+        .header-title {
+            color: #000;
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .page-wrapper {
+            padding-top: calc(var(--header-height) + 16px);
+            padding-bottom: 40px;
+        }
+
+        .content-container {
+            max-width: 1000px; /* Widened slightly to accommodate a 4-column grid */
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        /* HERO AREA */
+        .hero-article {
+            margin-bottom: 32px;
+        }
+
+        .hero-article a {
+            display: block;
+            text-decoration: none !important;
+            color: var(--text-main) !important;
+        }
+
+        .hero-image {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .hero-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+            line-height: 1.2;
+            text-decoration: none !important;
+            color: var(--text-main) !important;
+        }
+
+        .hero-snippet {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* GRID / LIST */
+        .article-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 4 items per row on desktop */
+            gap: 16px;
+        }
+
+        .article-grid a {
+            display: flex;
+            flex-direction: column;
+            background-color: var(--card-white);
+            border-radius: 6px;
+            padding: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            text-decoration: none !important;
+            color: var(--text-main) !important;
+            transition: transform 0.2s ease;
+        }
+        
+        .article-grid a:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Styling for images inside the grid (if your generator adds them) */
+        .article-grid img {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+
+        .article-grid h2 { 
+            font-size: 1.05rem; 
+            margin-bottom: 6px; 
+            font-weight: 700; 
+            line-height: 1.3;
+        }
+
+        .article-grid p { 
+            font-size: 0.85rem; 
+            color: var(--text-muted); 
+            /* Optional: limits the paragraph to 3 lines so the grid stays neat */
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* MOBILE OVERRIDES */
+        @media (max-width: 768px) {
+            .content-container { padding: 0 12px; }
+            .hero-image { 
+                margin-left: -12px; 
+                width: calc(100% + 24px); 
+                border-radius: 0; 
+            }
+            .hero-title { font-size: 1.65rem; }
+            
+            .article-grid { 
+                grid-template-columns: repeat(2, 1fr); /* 2 items per row on mobile to fit nicely */
+                gap: 12px; 
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <a href="index.html" class="header-title">9ja News Pluse</a>
+</header>
+
+<main class="page-wrapper">
+    <div class="content-container">
+
+        <section class="hero-article">
+            <a href="{{LATEST_URL}}">
+                <img src="{{LATEST_IMAGE}}" class="hero-image" alt="{{LATEST_TITLE}}" loading="eager">
+                <h1 class="hero-title">{{LATEST_TITLE}}</h1>
+                <p class="hero-snippet">{{LATEST_DESCRIPTION}}</p>
+            </a>
+        </section>
+
+        <section class="article-grid">
+            {{ALL_ARTICLES_GRID}}
+        </section>
+
+    </div>
+</main>
+
+</body>
+</html>

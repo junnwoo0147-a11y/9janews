@@ -1,137 +1,141 @@
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
-const config = require("./site-config.js");
-const articles = JSON.parse(fs.readFileSync("./data/articles.json", "utf-8"));
+// --- 1. CONFIGURATION ---
+const config = {
+  baseUrl: "https://your-domain.com", // CHANGE THIS (no trailing slash)
+  siteName: "Football & Music Hub",
+  authorName: "Ifeanyi Clement Okoye", // Signals E-E-A-T to Google
+  description: "Tactical football analysis and curated music reviews.",
+  outputDir: path.join(__dirname, 'public')
+};
 
-const homeTemplate = fs.readFileSync("./templates/index-template.html", "utf-8");
-const articleTemplate = fs.readFileSync("./templates/article-template.html", "utf-8");
+// --- 2. YOUR DATA ---
+// Keep this in a separate JSON file eventually, but here is the structure:
+const articles = [
+  {
+    title: "The Osimhen Era: Why Galatasaray’s Leadership Crisis Ends Without an Armband",
+    slug: "osimhen-galatasaray-leadership",
+    date: "2026-05-07T10:00:00Z", // Use ISO format
+    category: "Football",
+    image: "https://your-domain.com/assets/osimhen-action.jpg", // Must be 1200px+ wide
+    description: "In the high-pressure cauldron of RAMS Park, Osimhen proves leadership is a frequency, not a piece of fabric.",
+    content: `
+      <p>In the high-pressure cauldron of RAMS Park, the captain’s armband is usually a heavy burden.</p>
+      <p>But for Victor Osimhen, leadership isn't a piece of fabric—it's a frequency he operates on...</p>
+    `
+  }
+];
 
-const distDir = path.resolve(__dirname, "dist");
-const articleOut = path.join(distDir, "articles");
+// --- 3. THE ENGINE ---
+if (!fs.existsSync(config.outputDir)) fs.mkdirSync(config.outputDir);
 
-/* =========================================================
-   0. CLEAN & PREPARE DIRECTORIES (FIXES ENOTDIR)
-========================================================= */
-if (fs.existsSync(distDir)) {
-  // force: true and recursive: true deletes 'dist' even if it's a file
-  fs.rmSync(distDir, { recursive: true, force: true });
-}
-// This recreates the full path safely
-fs.mkdirSync(articleOut, { recursive: true });
+function build() {
+  let rssItems = "";
+  let sitemapItems = "";
+  const now = new Date();
+  const twoDaysAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
 
-/* =========================================================
-   1. DISCOVER-LIKE SCORING SYSTEM
-========================================================= */
-function scoreArticle(article) {
-  let score = 0;
-  const daysOld = (Date.now() - new Date(article.datePublished)) / (1000 * 60 * 60 * 24);
+  articles.forEach(art => {
+    const url = `${config.baseUrl}/${art.slug}.html`;
+    const pubDate = new Date(art.date);
 
-  score += Math.max(0, 10 - daysOld);
+    // A. GENERATE HTML (With Discover & E-E-A-T Metadata)
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="max-image-preview:large">
+    <meta name="description" content="${art.description}">
+    <title>${art.title} | ${config.siteName}</title>
+    
+    <!-- Structured Data for Google News & E-E-A-T -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "NewsArticle",
+      "headline": "${art.title}",
+      "image": ["${art.image}"],
+      "datePublished": "${art.date}",
+      "author": [{
+          "@type": "Person",
+          "name": "${config.authorName}",
+          "url": "${config.baseUrl}/about"
+      }]
+    }
+    </script>
+</head>
+<body>
+    <header><h1>${config.siteName}</h1></header>
+    <main>
+        <article>
+            <h1>${art.title}</h1>
+            <p><em>By ${config.authorName} | ${pubDate.toDateString()}</em></p>
+            <img src="${art.image}" alt="${art.title}" style="max-width:100%">
+            ${art.content}
+        </article>
+    </main>
+</body>
+</html>`;
 
-  if (article.image) score += 3;
-  if (article.description && article.description.length > 50) score += 2;
-  if (article.content && article.content.length > 500) score += 3;
+    fs.writeFileSync(path.join(config.outputDir, `${art.slug}.html`), html);
 
-  return score;
-}
+    // B. PREPARE RSS ITEM
+    rssItems += `
+    <item>
+        <title><![CDATA[${art.title}]]></title>
+        <link>${url}</link>
+        <guid isPermaLink="true">${url}</guid>
+        <pubDate>${pubDate.toUTCString()}</pubDate>
+        <description><![CDATA[${art.description}]]></description>
+        <category>${art.category}</category>
+    </item>`;
 
-/* =========================================================
-   2. PREPARE ARTICLES
-========================================================= */
-const ranked = articles
-  .map(a => ({ ...a, score: scoreArticle(a) }))
-  .sort((a, b) => b.score - a.score);
-
-/* =========================================================
-   3. AUTO RELATED ARTICLES
-========================================================= */
-function getRelated(article, all) {
-  return all
-    .filter(a => a.slug !== article.slug)
-    .slice(0, 2);
-}
-
-/* =========================================================
-   4. BUILD ARTICLE PAGES
-========================================================= */
-ranked.forEach(article => {
-  const canonical = `${config.baseUrl}/articles/${article.slug}.html`;
-  const related = getRelated(article, ranked);
-
-  const html = articleTemplate
-    .replace(/__TITLE__/g, article.title)
-    .replace(/__DESCRIPTION__/g, article.description)
-    .replace(/__IMAGE_URL__/g, article.image || "")
-    .replace(/__CONTENT__/g, article.content)
-    .replace(/__INTRO_PARAGRAPH__/g, article.intro || "")
-    .replace(/__DATE_PUBLISHED__/g, article.datePublished)
-    .replace(/__DATE_MODIFIED__/g, article.dateModified || article.datePublished)
-    .replace(/__DISPLAY_DATE__/g, new Date(article.datePublished).toDateString())
-    .replace(/__CANONICAL_URL__/g, canonical)
-    .replace(/__RELATED_1__/g, related[0] ? `articles/${related[0].slug}.html` : "#")
-    .replace(/__RELATED_2__/g, related[1] ? `articles/${related[1].slug}.html` : "#");
-
-  fs.writeFileSync(
-    path.join(articleOut, `${article.slug}.html`),
-    html
-  );
-});
-
-/* =========================================================
-   5. BUILD HOMEPAGE (HERO + GRID)
-========================================================= */
-const latest = ranked[0];
-const rest = ranked.slice(1);
-
-const grid = rest.map(article => `
-<div class="grid-item">
-    <a href="articles/${article.slug}.html">
-        <img src="${article.image}" alt="${article.title}" loading="lazy">
-        <h3>${article.title}</h3>
-        <p>${article.description}</p>
-    </a>
-</div>
-`).join("");
-
-const homepage = homeTemplate
-  .replace(/{{LATEST_URL}}/g, `articles/${latest.slug}.html`)
-  .replace(/{{LATEST_IMAGE}}/g, latest.image)
-  .replace(/{{LATEST_TITLE}}/g, latest.title)
-  .replace(/{{LATEST_DESCRIPTION}}/g, latest.description)
-  .replace(/{{ALL_ARTICLES_GRID}}/g, grid);
-
-/* =========================================================
-   6. WRITE HOMEPAGE
-========================================================= */
-fs.writeFileSync(
-  path.join(distDir, "index.html"),
-  homepage
-);
-
-/* =========================================================
-   7. COPY ASSETS
-========================================================= */
-function copyFolder(src, dest) {
-  if (!fs.existsSync(src)) return;
-
-  fs.mkdirSync(dest, { recursive: true });
-
-  fs.readdirSync(src, { withFileTypes: true }).forEach(entry => {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-
-    if (entry.isDirectory()) {
-      copyFolder(srcPath, destPath);
-    } else {
-      fs.copyFileSync(srcPath, destPath);
+    // C. PREPARE NEWS SITEMAP (Only for articles < 48 hours old)
+    if (pubDate > twoDaysAgo) {
+      sitemapItems += `
+    <url>
+        <loc>${url}</loc>
+        <news:news>
+            <news:publication>
+                <news:name>${config.siteName}</news:name>
+                <news:language>en</news:language>
+            </news:publication>
+            <news:publication_date>${pubDate.toISOString()}</news:publication_date>
+            <news:title>${art.title.replace(/&/g, '&amp;')}</news:title>
+        </news:news>
+    </url>`;
     }
   });
+
+  // --- 4. WRITE XML FILES ---
+
+  // RSS Feed
+  const rssFeed = `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+    <title>${config.siteName}</title>
+    <link>${config.baseUrl}</link>
+    <description>${config.description}</description>
+    <language>en-us</language>
+    <atom:link href="${config.baseUrl}/feed.xml" rel="self" type="application/rss+xml" />
+    ${rssItems}
+</channel>
+</rss>`;
+  fs.writeFileSync(path.join(config.outputDir, 'feed.xml'), rssFeed);
+
+  // News Sitemap
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+    ${sitemapItems}
+</urlset>`;
+  fs.writeFileSync(path.join(config.outputDir, 'sitemap-news.xml'), sitemap);
+
+  // Static Index
+  fs.writeFileSync(path.join(config.outputDir, 'index.html'), `<h1>${config.siteName}</h1><p>Check the <a href="/feed.xml">RSS</a></p>`);
+
+  console.log(`✅ Build Complete: ${articles.length} pages, RSS, and News Sitemap generated.`);
 }
 
-copyFolder("./assets", path.join(distDir, "assets"));
-
-/* =========================================================
-   DONE
-========================================================= */
-console.log("✅ BUILD COMPLETE — SITE GENERATED IN /dist");
+build();

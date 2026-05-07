@@ -11,13 +11,11 @@
     <meta name="googlebot" content="index, follow">
     <link rel="canonical" href="https://blog.pluse.name.ng/">
 
-    <!-- Open Graph with Hard Fallback -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="9ja News Pluse">
     <meta property="og:title" content="9ja News Pluse - Latest Updates">
     <meta property="og:description" content="Breaking news and trending stories in Nigeria and beyond.">
     <meta property="og:url" content="https://blog.pluse.name.ng/">
-    <!-- The generator will replace this, but the fallback prevents a 404 preview -->
     <meta property="og:image" content="{{LATEST_IMAGE:-https://blog.pluse.name.ng/assets/img/default-og.jpg}}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="675">
@@ -66,7 +64,6 @@
             font-size: 1.1rem;
             font-weight: 700;
             text-decoration: none;
-            text-transform: uppercase;
         }
 
         .page-wrapper {
@@ -161,7 +158,6 @@
 <main class="page-wrapper">
     <div class="content-container">
 
-        <!-- LATEST HERO (High Priority) -->
         <section class="hero-article">
             <a href="{{LATEST_URL}}">
                 <img src="{{LATEST_IMAGE}}" class="hero-image" alt="{{LATEST_TITLE}}" loading="eager">
@@ -170,7 +166,6 @@
             </a>
         </section>
 
-        <!-- GRID FEED (Lazy Load suggested for images here) -->
         <section class="article-grid">
             {{ALL_ARTICLES_GRID}}
         </section>

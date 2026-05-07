@@ -4,205 +4,385 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <!-- SEO -->
     <title>9ja News Pluse | Nigeria's Latest Breaking Updates</title>
 
-    <meta name="description" content="Stay updated with the latest news, sports, and trending stories in Nigeria.">
+    <meta name="description" content="Stay updated with the latest news, sports, entertainment and trending stories in Nigeria.">
     <meta name="robots" content="index, follow, max-image-preview:large">
     <meta name="googlebot" content="index, follow">
+
     <link rel="canonical" href="https://pluse.name.ng/">
 
+    <!-- OPEN GRAPH -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="9ja News Pluse">
     <meta property="og:title" content="9ja News Pluse - Latest Updates">
     <meta property="og:description" content="Breaking news and trending stories in Nigeria and beyond.">
     <meta property="og:url" content="https://pluse.name.ng/">
-    <meta property="og:image" content="{{LATEST_IMAGE:-https://pluse.name.ng/assets/img/default-og.jpg}}">
+    <meta property="og:image" content="{{LATEST_IMAGE}}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="675">
-    
+
+    <!-- TWITTER -->
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="9ja News Pluse">
+    <meta name="twitter:description" content="Breaking news and trending stories.">
     <meta name="twitter:image" content="{{LATEST_IMAGE}}">
 
     <style>
         :root {
-            --brand-gold: #f7d24e;
-            --site-bg: #f4f4f4;
+            --brand-green: #00ff88;
+            --brand-dark: #0a0a0a;
+            --site-bg: #f4f6f8;
             --card-white: #ffffff;
-            --text-main: #1a1a1a;
+            --text-main: #111111;
             --text-muted: #666666;
-            --border-light: #eeeeee;
-            --header-height: 56px;
+            --border-light: #e8e8e8;
+            --header-height: 60px;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             line-height: 1.6;
             background-color: var(--site-bg);
             color: var(--text-main);
             -webkit-font-smoothing: antialiased;
         }
 
-        img { max-width: 100%; height: auto; display: block; }
-        
-        /* Global link reset to prevent blue text and underlines */
-        a { text-decoration: none; color: inherit; }
+        img {
+            max-width: 100%;
+            display: block;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        /* =========================
+           HEADER
+        ========================== */
 
         .header {
-            background-color: var(--brand-gold);
+            background: linear-gradient(90deg, #00ff88, #00d46f);
             height: var(--header-height);
             width: 100%;
             position: fixed;
-            top: 0; left: 0;
+            top: 0;
+            left: 0;
             display: flex;
             align-items: center;
+            justify-content: space-between;
             padding: 0 20px;
-            z-index: 100;
-            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
         }
 
         .header-title {
             color: #000;
-            font-size: 1.1rem;
-            font-weight: 700;
-            text-decoration: none;
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
         }
 
+        /* =========================
+           MAIN LAYOUT
+        ========================== */
+
         .page-wrapper {
-            padding-top: calc(var(--header-height) + 16px);
-            padding-bottom: 40px;
+            padding-top: calc(var(--header-height) + 20px);
+            padding-bottom: 50px;
         }
 
         .content-container {
-            max-width: 1000px; /* Widened slightly to accommodate a 4-column grid */
+            max-width: 1100px;
             margin: 0 auto;
             padding: 0 16px;
         }
 
-        /* HERO AREA */
+        /* =========================
+           HERO SECTION
+        ========================== */
+
         .hero-article {
             margin-bottom: 32px;
         }
 
         .hero-article a {
             display: block;
-            text-decoration: none !important;
-            color: var(--text-main) !important;
         }
 
         .hero-image {
             width: 100%;
             aspect-ratio: 16 / 9;
             object-fit: cover;
-            border-radius: 6px;
-            margin-bottom: 12px;
+            border-radius: 10px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
 
         .hero-title {
-            font-size: 2rem;
+            font-size: 2.2rem;
             font-weight: 800;
-            margin-bottom: 4px;
             line-height: 1.2;
-            text-decoration: none !important;
-            color: var(--text-main) !important;
+            margin-bottom: 8px;
+            color: #111;
         }
 
         .hero-snippet {
             font-size: 1rem;
             color: var(--text-muted);
-            margin-top: 6px;
+            max-width: 750px;
         }
 
-        /* GRID / LIST */
+        /* =========================
+           ARTICLE GRID
+        ========================== */
+
         .article-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr); /* 4 items per row on desktop */
-            gap: 16px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
         }
 
         .article-grid a {
+            background: var(--card-white);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
             display: flex;
             flex-direction: column;
-            background-color: var(--card-white);
-            border-radius: 6px;
-            padding: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            text-decoration: none !important;
-            color: var(--text-main) !important;
-            transition: transform 0.2s ease;
-        }
-        
-        .article-grid a:hover {
-            transform: translateY(-2px);
         }
 
-        /* Styling for images inside the grid (if your generator adds them) */
+        .article-grid a:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+        }
+
         .article-grid img {
             width: 100%;
-            height: 140px;
+            height: 160px;
             object-fit: cover;
-            border-radius: 4px;
-            margin-bottom: 12px;
         }
 
-        .article-grid h2 { 
-            font-size: 1.05rem; 
-            margin-bottom: 6px; 
-            font-weight: 700; 
-            line-height: 1.3;
+        .article-content {
+            padding: 14px;
         }
 
-        .article-grid p { 
-            font-size: 0.85rem; 
-            color: var(--text-muted); 
-            /* Optional: limits the paragraph to 3 lines so the grid stays neat */
+        .article-grid h2 {
+            font-size: 1rem;
+            line-height: 1.35;
+            margin-bottom: 8px;
+            font-weight: 700;
+            color: #111;
+        }
+
+        .article-grid p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+
             display: -webkit-box;
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
 
-        /* MOBILE OVERRIDES */
-        @media (max-width: 768px) {
-            .content-container { padding: 0 12px; }
-            .hero-image { 
-                margin-left: -12px; 
-                width: calc(100% + 24px); 
-                border-radius: 0; 
+        /* =========================
+           FOOTER
+        ========================== */
+
+        .footer {
+            background: linear-gradient(90deg, #0a0a0a, #121212);
+            color: #ffffff;
+            margin-top: 50px;
+            padding: 40px 20px;
+        }
+
+        .footer-container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .footer-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 30px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .footer-brand h3 {
+            font-size: 1.4rem;
+            margin-bottom: 10px;
+            color: var(--brand-green);
+        }
+
+        .footer-brand p {
+            color: #cccccc;
+            max-width: 400px;
+            font-size: 0.95rem;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .footer-links a {
+            color: #ffffff;
+            font-size: 0.95rem;
+            transition: color 0.2s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--brand-green);
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding-top: 20px;
+            color: #aaaaaa;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        /* =========================
+           MOBILE
+        ========================== */
+
+        @media (max-width: 900px) {
+            .article-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
-            .hero-title { font-size: 1.65rem; }
-            
-            .article-grid { 
-                grid-template-columns: repeat(2, 1fr); /* 2 items per row on mobile to fit nicely */
-                gap: 12px; 
+        }
+
+        @media (max-width: 600px) {
+
+            .content-container {
+                padding: 0 12px;
+            }
+
+            .hero-image {
+                border-radius: 0;
+                margin-left: -12px;
+                width: calc(100% + 24px);
+            }
+
+            .hero-title {
+                font-size: 1.65rem;
+            }
+
+            .article-grid {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+
+            .footer-top {
+                flex-direction: column;
+            }
+
+            .footer-links {
+                gap: 14px;
             }
         }
     </style>
 </head>
+
 <body>
 
+<!-- HEADER -->
 <header class="header">
-    <a href="index.html" class="header-title">9ja News Pluse</a>
+    <a href="/index.html" class="header-title">
+        9ja News Pluse
+    </a>
 </header>
 
+<!-- MAIN -->
 <main class="page-wrapper">
+
     <div class="content-container">
 
+        <!-- HERO ARTICLE -->
         <section class="hero-article">
+
             <a href="{{LATEST_URL}}">
-                <img src="{{LATEST_IMAGE}}" class="hero-image" alt="{{LATEST_TITLE}}" loading="eager">
-                <h1 class="hero-title">{{LATEST_TITLE}}</h1>
-                <p class="hero-snippet">{{LATEST_DESCRIPTION}}</p>
+
+                <img 
+                    src="{{LATEST_IMAGE}}" 
+                    class="hero-image"
+                    alt="{{LATEST_TITLE}}"
+                    loading="eager"
+                >
+
+                <h1 class="hero-title">
+                    {{LATEST_TITLE}}
+                </h1>
+
+                <p class="hero-snippet">
+                    {{LATEST_DESCRIPTION}}
+                </p>
+
             </a>
+
         </section>
 
+        <!-- ARTICLE GRID -->
         <section class="article-grid">
+
             {{ALL_ARTICLES_GRID}}
+
         </section>
 
     </div>
+
 </main>
+
+<!-- FOOTER -->
+<footer class="footer">
+
+    <div class="footer-container">
+
+        <div class="footer-top">
+
+            <div class="footer-brand">
+                <h3>9ja News Pluse</h3>
+
+                <p>
+                    Nigeria's digital source for breaking news, politics,
+                    sports, entertainment and trending updates across the world.
+                </p>
+            </div>
+
+            <div class="footer-links">
+
+                <a href="/about/about.html">
+                    About Us
+                </a>
+
+                <a href="/privacy-policy/privacy.html">
+                    Privacy Policy
+                </a>
+
+            </div>
+
+        </div>
+
+        <div class="footer-bottom">
+            © 2026 9ja News Pluse. All rights reserved.
+        </div>
+
+    </div>
+
+</footer>
 
 </body>
 </html>

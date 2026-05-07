@@ -7,7 +7,8 @@
     <!-- SEO & META -->
     <title>__TITLE__ | 9ja News Pluse</title>
     <meta name="description" content="__DESCRIPTION__">
-    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <meta name="robots" content="index, follow, max-snippet:-1, max-video-preview:-1">
+    <meta name="googlebot" content="index, follow">
     <link rel="canonical" href="__CANONICAL_URL__">
 
     <!-- FEEDS -->
@@ -16,7 +17,7 @@
 
     <!-- OPEN GRAPH -->
     <meta property="og:type" content="article">
-    <meta property="og:site_name" content="9ja News">
+    <meta property="og:site_name" content="9ja News Pluse">
     <meta property="og:title" content="__TITLE__">
     <meta property="og:description" content="__DESCRIPTION__">
     <meta property="og:url" content="__CANONICAL_URL__">
@@ -29,6 +30,8 @@
     <meta name="twitter:title" content="__TITLE__">
     <meta name="twitter:description" content="__DESCRIPTION__">
     <meta name="twitter:image" content="__IMAGE_URL__">
+
+    <link rel="preload" as="image" href="__IMAGE_URL__">
 
     <!-- STRUCTURED DATA -->
     <script type="application/ld+json">
@@ -62,159 +65,145 @@
 
     <style>
         :root {
-            --brand-gold: #f7d24e;
-            --site-bg: #f4f4f4;
-            --card-white: #ffffff;
-            --text-main: #1a1a1a;
-            --text-muted: #666666;
-            --border-light: #eeeeee;
-            --header-height: 56px;
+            --green: #00d26a;
+            --green-dark: #00b85c;
+            --bg: #f4f7f5;
+            --text: #121212;
+            --muted: #666;
+            --white: #fff;
+            --border: #e7e7e7;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { margin:0; padding:0; box-sizing:border-box; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            background-color: var(--site-bg);
-            color: var(--text-main);
-            -webkit-font-smoothing: antialiased;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
         }
 
-        img {
-            max-width: 100%;
-            height: auto;
-            display: block;
-        }
+        a { text-decoration: none; color: inherit; }
 
+        /* HEADER */
         .header {
-            background-color: var(--brand-gold);
-            height: var(--header-height);
-            width: 100%;
+            background: linear-gradient(90deg, var(--green), var(--green-dark));
+            padding: 14px 20px;
             position: fixed;
+            width: 100%;
             top: 0;
-            left: 0;
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-            z-index: 100;
-            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
         }
 
         .header-title {
-            color: #000;
-            font-size: 1.1rem;
-            font-weight: 700;
-            text-decoration: none;
-            text-transform: uppercase;
+            color: #fff;
+            font-weight: 800;
         }
 
-        .page-wrapper {
-            padding-top: calc(var(--header-height) + 16px);
-            padding-bottom: 40px;
+        .back-btn {
+            color: #fff;
+            font-size: 0.9rem;
+            opacity: 0.9;
         }
 
-        .content-container {
-            max-width: 680px;
+        .back-btn:hover {
+            opacity: 1;
+        }
+
+        /* LAYOUT */
+        .wrapper {
+            max-width: 760px;
             margin: 0 auto;
-            padding: 0 16px;
+            padding: 90px 16px 60px;
         }
 
         .card {
-            background-color: var(--card-white);
-            border-radius: 4px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            background: var(--white);
+            padding: 22px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.04);
         }
 
-        .main-article-title {
-            font-size: 1.85rem;
+        /* TITLE */
+        h1 {
+            font-size: 2rem;
             font-weight: 800;
-            line-height: 1.25;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
-        .main-article-meta {
+        .meta {
             font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 20px;
-            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 18px;
         }
 
-        .featured-image-container {
-            margin-bottom: 20px;
-        }
-
-        .featured-image {
+        /* IMAGE */
+        .featured img {
             width: 100%;
-            border-radius: 4px;
+            border-radius: 10px;
         }
 
-        .article-snippet {
+        /* AUTHOR LINK */
+        .author-link {
+            color: var(--green-dark);
+            font-weight: 700;
+        }
+
+        /* AD SLOTS */
+        .ad-slot {
+            background: #eafaf1;
+            border: 1px dashed var(--green);
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            border-radius: 10px;
             font-weight: 600;
+            color: var(--green-dark);
+        }
+
+        /* RELATED SECTION */
+        .related {
+            background: linear-gradient(135deg, var(--green), var(--green-dark));
+            padding: 18px;
+            border-radius: 12px;
+            color: #fff;
+        }
+
+        .related h2 {
+            margin-bottom: 12px;
             font-size: 1.1rem;
-            margin-bottom: 20px;
-            color: #444;
         }
 
-        .article-body {
-            font-size: 1.1rem;
-            line-height: 1.7;
-            color: #333;
+        .related-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
         }
 
-        .article-body p {
-            margin-bottom: 1.5rem;
+        .related-item {
+            background: rgba(255,255,255,0.12);
+            border-radius: 10px;
+            overflow: hidden;
         }
 
-        .sub-card-header {
-            font-weight: bold;
-            margin-bottom: 15px;
-            font-size: 1.1rem;
-            border-bottom: 2px solid var(--brand-gold);
-            display: inline-block;
+        .related-item img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
         }
 
-        .article-list a {
-            display: block;
-            padding: 12px 0;
-            border-bottom: 1px solid var(--border-light);
-            text-decoration: none;
-            color: #0066cc;
+        .related-item div {
+            padding: 10px;
+            font-size: 0.9rem;
             font-weight: 600;
         }
 
-        @media (max-width: 600px) {
-            .content-container { 
-                padding: 0 12px; 
-            }
-            .card { 
-                border-radius: 0; 
-                padding: 16px;
-                margin-bottom: 16px;
-                box-shadow: none; 
-                border-bottom: 1px solid var(--border-light);
-                background-color: var(--card-white);
-            }
-            .featured-image-container {
-                margin-left: -16px; 
-                margin-right: -16px;
-                width: calc(100% + 32px);
-            }
-            .featured-image {
-                border-radius: 0;
-            }
-            .main-article-title {
-                font-size: 1.6rem;
-            }
-            .article-body {
-                font-size: 1.05rem;
-            }
+        @media(max-width:600px){
+            .related-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -223,41 +212,56 @@
 
 <header class="header">
     <a href="/index.html" class="header-title">9ja News Pluse</a>
+    <a class="back-btn" href="javascript:history.back()">← back</a>
 </header>
 
-<main class="page-wrapper">
-    <div class="content-container">
+<div class="wrapper">
 
-        <article class="card">
-            <h1 class="main-article-title">__TITLE__</h1>
+    <!-- ARTICLE -->
+    <div class="card">
 
-            <div class="main-article-meta">
-                By Ifeanyi Clement Okoye • __DISPLAY_DATE__
-            </div>
+        <h1>__TITLE__</h1>
 
-            <div class="featured-image-container">
-                <img src="__IMAGE_URL__" alt="__TITLE__" class="featured-image" loading="eager">
-            </div>
+        <div class="meta">
+            By <a class="author-link" href="https://pluse.name.ng/authors/ifeanyi-okoye.html">
+                Ifeanyi Clement Okoye
+            </a>
+            • __DISPLAY_DATE__
+        </div>
 
-            <p class="article-snippet">
-                __INTRO_PARAGRAPH__
-            </p>
+        <div class="featured">
+            <img src="__IMAGE_URL__" alt="__TITLE__">
+        </div>
 
-            <div class="article-body">
-                __CONTENT__
-            </div>
-        </article>
+        <p><b>__INTRO_PARAGRAPH__</b></p>
 
-        <div class="card">
-            <div class="sub-card-header">Related Articles</div>
-            <div class="article-list">
-                <a href="__RELATED_1__">Related Story Title 1</a>
-                <a href="__RELATED_2__">Related Story Title 2</a>
-            </div>
+        <div>
+            __CONTENT__
         </div>
 
     </div>
-</main>
+
+    <!-- AD SLOT 1 -->
+    <div class="ad-slot">Ad Space 1</div>
+
+    <!-- AUTHOR AD SLOT 2 -->
+    <div class="ad-slot">Ad Space 2</div>
+
+    <!-- RELATED ARTICLES (DYNAMIC) -->
+    <div class="related">
+
+        <h2>More in this category</h2>
+
+        <div class="related-grid">
+            __RELATED_ARTICLES_DYNAMIC__
+        </div>
+
+    </div>
+
+    <!-- AD SLOT 3 -->
+    <div class="ad-slot">Ad Space 3</div>
+
+</div>
 
 </body>
 </html>

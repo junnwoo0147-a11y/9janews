@@ -69,6 +69,49 @@ function getRelated(article, all) {
 }
 
 /* =========================================================
+   SMART RELATED ARTICLES (CATEGORY + TITLE BASED)
+========================================================= */
+function getRelated(article, all) {
+  const normalize = str =>
+    (str || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, "")
+      .split(" ")
+      .filter(Boolean);
+
+  const articleWords = new Set([
+    ...normalize(article.title),
+    ...(article.category ? normalize(article.category) : [])
+  ]);
+
+  return all
+    .filter(a => a.slug !== article.slug)
+    .map(a => {
+      const words = [
+        ...normalize(a.title),
+        ...(a.category ? normalize(a.category) : [])
+      ];
+
+      let score = 0;
+
+      words.forEach(w => {
+        if (articleWords.has(w)) score++;
+      });
+
+      if (
+        a.category &&
+        article.category &&
+        a.category === article.category
+      ) {
+        score += 5;
+      }
+
+      return { ...a, score };
+    })
+    .sort((a, b) => b.score - a.score);
+}
+
+/* =========================================================
    BUILD ARTICLE PAGES
 ========================================================= */
 ranked.forEach(article => {
@@ -77,30 +120,33 @@ ranked.forEach(article => {
 
   const related = getRelated(article, ranked);
 
+  const relatedHTML = related
+    .slice(0, 10) // show up to 10 related articles (adjust if you want more)
+    .map(r => `
+      <a class="related-item" href="articles/${r.slug}.html">
+        <img src="${r.image || ""}" alt="${r.title}">
+        <h4>${r.title}</h4>
+      </a>
+    `)
+    .join("");
+
   const html = articleTemplate
-    .replace(/__TITLE__/g, article.title)
-    .replace(/__DESCRIPTION__/g, article.description)
-    .replace(/__IMAGE_URL__/g, article.image || "")
-    .replace(/__CONTENT__/g, article.content)
+    .replace(/__TITLE__/g, article.title || "")
+    .replace(/__DESCRIPTION__/g, article.description || "")
+    .replace(/__IMAGE_URL__/g, article.image || "/assets/default.jpg")
+    .replace(/__CONTENT__/g, article.content || "")
     .replace(/__INTRO_PARAGRAPH__/g, article.intro || "")
-    .replace(/__DATE_PUBLISHED__/g, article.datePublished)
-    .replace(/__DATE_MODIFIED__/g, article.dateModified || article.datePublished)
+    .replace(/__DATE_PUBLISHED__/g, article.datePublished || "")
+    .replace(/__DATE_MODIFIED__/g, article.dateModified || article.datePublished || "")
     .replace(/__DISPLAY_DATE__/g, new Date(article.datePublished).toDateString())
     .replace(/__CANONICAL_URL__/g, canonical)
-    .replace(
-      /__RELATED_1__/g,
-      related[0] ? `articles/${related[0].slug}.html` : "#"
-    )
-    .replace(
-      /__RELATED_2__/g,
-      related[1] ? `articles/${related[1].slug}.html` : "#"
-    );
+    .replace(/__RELATED_ARTICLES__/g, relatedHTML);
 
   fs.writeFileSync(
     path.join(articleOut, `${article.slug}.html`),
     html
   );
-});
+});;
 
 /* =========================================================
    BUILD HOMEPAGE
@@ -134,26 +180,29 @@ fs.writeFileSync(
 );
 
 /* =========================================================
-   STATIC PAGES (/about, /privacy-policy, /authors)
+   STATIC PAGES → BUILD INTO /dist
 ========================================================= */
+
 const staticPages = [
-  "about",
-  "privacy-policy",
-  "authors"
+  {
+    route: "about",
+    file: "./about/about.html"
+  },
+  {
+    route: "privacy-policy",
+    file: "./privacy-policy/privacy.html"
+  },
+  {
+    route: "authors",
+    file: "./authors/ifeanyi-okoye.html"
+  }
 ];
 
 staticPages.forEach(page => {
-  const content = fs.readFileSync(
-    `./pages/${page}.html`,
-    "utf-8"
-  );
-
-  const outDir = path.join(distDir, page);
-
-  fs.mkdirSync(outDir, { recursive: true });
+  const content = fs.readFileSync(page.file, "utf-8");
 
   fs.writeFileSync(
-    path.join(outDir, "index.html"),
+    path.join(distDir, page.route + ".html"),
     content
   );
 });

@@ -47,22 +47,5 @@
           "title": "Ifeanyi Clement Okoye | Author at 9ja News Pluse",
           "description": "Ifeanyi Clement Okoye is an author and publisher at 9ja News covering politics, sports, entertainment, and breaking news in Nigeria.",
           "canonical": "https://blog.pluse.name.ng/authors/ifeanyi-okoye.html"
-        },
-        "articles": [
-          {
-            "title": "Sample Article Headline One",
-            "date": "May 8, 2026",
-            "url": "/news/sample-one.html",
-            "excerpt": "A short preview of the news story written by Ifeanyi..."
-          },
-          {
-            "title": "Sample Article Headline Two",
-            "date": "May 5, 2026",
-            "url": "/news/sample-two.html",
-            "excerpt": "Another brief summary of a recent report..."
-          }
-        ]
-      }
-    ]
-  }
-}
+        }
+  

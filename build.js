@@ -114,8 +114,108 @@ const homepage = homeTemplate
 fs.writeFileSync(path.join(distDir, "index.html"), homepage);
 
 /* =========================================================
-   STATIC PAGES & FEED
+   STATIC PAGES → INJECT DATA & BUILD
 ========================================================= */
-// (Keep the rest of your existing logic for About, Privacy, RSS, and Assets here)
 
-console.log("✅ BUILD COMPLETE — No duplicates in articles or homepage.");
+// 1. Build About Page
+const finalAbout = aboutTemplate
+  .replace(/__TITLE__/g, pagesData.pages.about.title)
+  .replace(/__DESCRIPTION__/g, pagesData.pages.about.description)
+  .replace(/__CANONICAL_URL__/g, pagesData.pages.about.canonical)
+  .replace(/__CONTENT__/g, formatSections(pagesData.pages.about.content_sections));
+
+fs.writeFileSync(path.join(distDir, "about.html"), finalAbout);
+
+// 2. Build Privacy Page
+const finalPrivacy = privacyTemplate
+  .replace(/__TITLE__/g, pagesData.pages.privacy.title)
+  .replace(/__DESCRIPTION__/g, pagesData.pages.privacy.description)
+  .replace(/__CANONICAL_URL__/g, pagesData.pages.privacy.canonical)
+  .replace(/__DATE_MODIFIED__/g, pagesData.pages.privacy.dateModified || new Date().toDateString())
+  .replace(/__CONTENT__/g, formatSections(pagesData.pages.privacy.sections));
+
+fs.writeFileSync(path.join(distDir, "privacy.html"), finalPrivacy);
+
+// 3. Build Author Page
+const authorData = pagesData.pages.authors.find(a => a.slug === "ifeanyi-okoye");
+
+if (authorData) {
+  const authorArticles = ranked.map(post => `
+      <a href="articles/${post.slug}.html" class="post-card">
+          <img src="${post.image}" class="post-thumb" alt="${post.title}">
+          <div class="post-info">
+              <h2>${post.title}</h2>
+              <span class="post-meta">${new Date(post.datePublished).toDateString()}</span>
+          </div>
+      </a>
+  `).join("");
+
+  const finalAuthor = authorTemplate
+    .replace(/__AUTHOR_NAME__/g, authorData.name)
+    .replace(/__AUTHOR_BIO__/g, authorData.bio)
+    .replace(/__AUTHOR_IMAGE__/g, authorData.image)
+    .replace(/___ORCID_URL__/g, authorData.social_url)
+    .replace(/__ARTICLE_COUNT__/g, ranked.length)
+    .replace(/__LATEST_POSTS_DYNAMIC__/g, authorArticles)
+    .replace(/__CANONICAL_URL__/g, authorData.seo.canonical);
+
+  fs.writeFileSync(path.join(distDir, "ifeanyi-okoye.html"), finalAuthor);
+}
+
+/* =========================================================
+   FEED & SITEMAP GENERATION
+========================================================= */
+const rssItems = ranked.map(article => `
+<item>
+  <title><![CDATA[${article.title}]]></title>
+  <link>${config.baseUrl}/articles/${article.slug}.html</link>
+  <guid>${config.baseUrl}/articles/${article.slug}.html</guid>
+  <pubDate>${new Date(article.datePublished).toUTCString()}</pubDate>
+  <description><![CDATA[${article.description || article.title}]]></description>
+</item>`).join("");
+
+const rssFeed = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>${config.siteName}</title>
+<link>${config.baseUrl}</link>
+<description>Latest news from ${config.siteName}</description>
+${rssItems}
+</channel>
+</rss>`;
+
+fs.writeFileSync(path.join(distDir, "feed.xml"), rssFeed);
+
+const sitemapUrls = ranked.map(article => `
+<url>
+  <loc>${config.baseUrl}/articles/${article.slug}.html</loc>
+  <lastmod>${new Date(article.datePublished).toISOString()}</lastmod>
+</url>`).join("");
+
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url><loc>${config.baseUrl}</loc></url>
+${sitemapUrls}
+</urlset>`;
+
+fs.writeFileSync(path.join(distDir, "sitemap.xml"), sitemap);
+
+/* =========================================================
+   COPY ASSETS & ROBOTS
+========================================================= */
+function copyFolder(src, dest) {
+  if (!fs.existsSync(src)) return;
+  fs.mkdirSync(dest, { recursive: true });
+  fs.readdirSync(src, { withFileTypes: true }).forEach(entry => {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) { copyFolder(srcPath, destPath); } 
+    else { fs.copyFileSync(srcPath, destPath); }
+  });
+}
+copyFolder("./assets", path.join(distDir, "assets"));
+
+const robots = `User-agent: *\nAllow: /\n\nSitemap: ${config.baseUrl}/sitemap.xml`;
+fs.writeFileSync(path.join(distDir, "robots.txt"), robots);
+
+console.log("✅ BUILD COMPLETE — SITE GENERATED IN /dist");

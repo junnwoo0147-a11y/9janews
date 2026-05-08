@@ -128,30 +128,36 @@ const homepage = homeTemplate
 
 fs.writeFileSync(path.join(distDir, "index.html"), homepage);
 
+const fs = require('fs');
+const path = require('path');
+
 /* =========================================================
    STATIC PAGES → INJECT DATA & BUILD
 ========================================================= */
 
 // 1. Build About Page
 const finalAbout = aboutTemplate
-  .replace(/__TITLE__/g, pagesData.about.title)
-  .replace(/__DESCRIPTION__/g, pagesData.about.description)
-  .replace(/__CANONICAL_URL__/g, `${config.baseUrl}/about.html`)
-  .replace(/__CONTENT__/g, pagesData.about.content);
+  .replace(/__TITLE__/g, pages.about.title)
+  .replace(/__DESCRIPTION__/g, pages.about.description)
+  .replace(/__CANONICAL_URL__/g, pages.about.canonical)
+  .replace(/__CONTENT__/g, formatSections(pages.about.content_sections));
 
 fs.writeFileSync(path.join(distDir, "about.html"), finalAbout);
 
 // 2. Build Privacy Page
 const finalPrivacy = privacyTemplate
-  .replace(/__TITLE__/g, pagesData.privacy.title)
-  .replace(/__DESCRIPTION__/g, pagesData.privacy.description)
-  .replace(/__CANONICAL_URL__/g, `${config.baseUrl}/privacy.html`)
-  .replace(/__DATE_MODIFIED__/g, pagesData.privacy.dateModified)
-  .replace(/__CONTENT__/g, pagesData.privacy.content);
+  .replace(/__TITLE__/g, pages.privacy.title)
+  .replace(/__DESCRIPTION__/g, pages.privacy.description)
+  .replace(/__CANONICAL_URL__/g, pages.privacy.canonical)
+  .replace(/__DATE_MODIFIED__/g, pages.privacy.dateModified)
+  .replace(/__CONTENT__/g, formatSections(pages.privacy.sections));
 
 fs.writeFileSync(path.join(distDir, "privacy.html"), finalPrivacy);
 
-// 3. Build Author Page (Dynamic Feed for Ifeanyi)
+// 3. Build Author Page (Dynamic Feed)
+// Find the specific author from the array
+const authorData = pages.authors.find(a => a.slug === "ifeanyi-okoye");
+
 const authorArticles = ranked.map(post => `
     <a href="articles/${post.slug}.html" class="post-card">
         <img src="${post.image}" class="post-thumb" alt="${post.title}">
@@ -163,13 +169,13 @@ const authorArticles = ranked.map(post => `
 `).join("");
 
 const finalAuthor = authorTemplate
-  .replace(/__AUTHOR_NAME__/g, pagesData.author.name)
-  .replace(/__AUTHOR_BIO__/g, pagesData.author.bio)
-  .replace(/__AUTHOR_IMAGE__/g, pagesData.author.image)
-  .replace(/___ORCID_URL__/g, pagesData.author.instagram)
-  .replace(/__ARTICLE_COUNT__/g, ranked.length) // Uses total ranked count
+  .replace(/__AUTHOR_NAME__/g, authorData.name)
+  .replace(/__AUTHOR_BIO__/g, authorData.bio)
+  .replace(/__AUTHOR_IMAGE__/g, authorData.image)
+  .replace(/___ORCID_URL__/g, authorData.social_url) // Mapped to social_url in JSON
+  .replace(/__ARTICLE_COUNT__/g, ranked.length)
   .replace(/__LATEST_POSTS_DYNAMIC__/g, authorArticles)
-  .replace(/__CANONICAL_URL__/g, `${config.baseUrl}/authors/ifeanyi-okoye.html`);
+  .replace(/__CANONICAL_URL__/g, authorData.seo.canonical);
 
 fs.writeFileSync(path.join(distDir, "ifeanyi-okoye.html"), finalAuthor);
 

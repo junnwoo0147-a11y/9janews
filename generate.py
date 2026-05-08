@@ -1,11 +1,9 @@
-```
-
 import os
 import re
 from datetime import datetime
 
 # --- CONFIGURATION ---
-SITE_URL = "[https://pluse.name.ng](https://pluse.name.ng)"
+SITE_URL = "https://blog.pluse.name.ng"
 # Pointing to your specific folder:
 ARTICLES_DIR = "dist/articles"  
 # These will be saved in the root so they are accessible at pluse.name.ng/sitemap.xml
@@ -52,7 +50,7 @@ def generate():
                 date_rss = datetime.fromtimestamp(mod_time).strftime('%a, %d %b %Y %H:%M:%S +0000')
                 
                 articles.append({
-                    # This constructs the URL as [https://pluse.name.ng/articles/filename.html](https://pluse.name.ng/articles/filename.html)
+                    # This constructs the URL as https://blog.pluse.name.ng/articles/filename.html
                     'url': f"{SITE_URL}/articles/{filename}",
                     'title': title,
                     'desc': desc,
@@ -65,7 +63,7 @@ def generate():
 
     # 2. Generate Sitemap
     with open(OUTPUT_SITEMAP, "w", encoding='utf-8') as f:
-        f.write('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="[http://www.sitemaps.org/schemas/sitemap/0.9](http://www.sitemaps.org/schemas/sitemap/0.9)">\n')
+        f.write('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
         for a in articles:
             f.write(f'  <url>\n    <loc>{a["url"]}</loc>\n    <lastmod>{a["date_iso"]}</lastmod>\n  </url>\n')
         f.write('</urlset>')
@@ -95,5 +93,3 @@ def generate():
 
 if __name__ == "__main__":
     generate()
-
-```

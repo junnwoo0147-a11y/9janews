@@ -12,7 +12,7 @@ jobs:
         with:
           python-version: '3.x'
       - name: Run script
-        run: python generate_feeds.py
+        run: python generate.py
       - name: Commit changes
         run: |
           git config --local user.email "action@github.com"

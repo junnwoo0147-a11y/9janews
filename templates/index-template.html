@@ -6,39 +6,27 @@
 
     <!-- SEO -->
     <title>9ja News Pluse | Nigeria's Latest Breaking Updates</title>
-
     <meta name="description" content="Stay updated with the latest news, sports, entertainment and trending stories in Nigeria.">
     <meta name="robots" content="index, follow, max-image-preview:large">
-    <meta name="googlebot" content="index, follow">
-
-    <link rel="canonical" href="https://pluse.name.ng/">
+    <link rel="canonical" href="https://blog.pluse.name.ng/">
 
     <!-- OPEN GRAPH -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="9ja News Pluse">
     <meta property="og:title" content="9ja News Pluse - Latest Updates">
     <meta property="og:description" content="Breaking news and trending stories in Nigeria and beyond.">
-    <meta property="og:url" content="https://pluse.name.ng/">
+    <meta property="og:url" content="https://blog.pluse.name.ng/">
     <meta property="og:image" content="{{LATEST_IMAGE}}">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="675">
-
-    <!-- TWITTER -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="9ja News Pluse">
-    <meta name="twitter:description" content="Breaking news and trending stories.">
-    <meta name="twitter:image" content="{{LATEST_IMAGE}}">
 
     <style>
         :root {
             --brand-green: #00ff88;
             --brand-dark: #0a0a0a;
-            --site-bg: #f4f6f8;
+            --site-bg: #f0f2f5;
             --card-white: #ffffff;
-            --text-main: #111111;
-            --text-muted: #666666;
-            --border-light: #e8e8e8;
-            --header-height: 60px;
+            --text-main: #1a1a1a;
+            --text-muted: #5f6368;
+            --header-height: 70px;
         }
 
         * {
@@ -48,29 +36,20 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.5;
             background-color: var(--site-bg);
             color: var(--text-main);
-            -webkit-font-smoothing: antialiased;
         }
 
-        img {
-            max-width: 100%;
-            display: block;
-        }
-
-        a {
-            text-decoration: none;
-            color: inherit;
-        }
+        a { text-decoration: none; color: inherit; }
+        img { max-width: 100%; display: block; }
 
         /* =========================
            HEADER
         ========================== */
-
         .header {
-            background: linear-gradient(90deg, #00ff88, #00d46f);
+            background: #000;
             height: var(--header-height);
             width: 100%;
             position: fixed;
@@ -79,115 +58,182 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 20px;
+            padding: 0 5%;
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            border-bottom: 4px solid var(--brand-green);
         }
 
         .header-title {
-            color: #000;
-            font-size: 1.15rem;
-            font-weight: 800;
-            letter-spacing: -0.5px;
+            color: var(--brand-green);
+            font-size: 1.6rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            text-transform: uppercase;
         }
 
         /* =========================
-           MAIN LAYOUT
+           MAIN WRAPPER
         ========================== */
-
         .page-wrapper {
             padding-top: calc(var(--header-height) + 20px);
-            padding-bottom: 50px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-bottom: 60px;
         }
 
         .content-container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0 16px;
+            padding: 0 15px;
         }
 
         /* =========================
-           HERO SECTION
+           HERO SECTION (LATEST)
         ========================== */
-
-        .hero-article {
-            margin-bottom: 32px;
+        .hero-section {
+            margin-bottom: 40px;
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
         }
 
-        .hero-article a {
+        .hero-link {
             display: block;
+            position: relative;
+            height: 500px;
         }
 
         .hero-image {
             width: 100%;
-            aspect-ratio: 16 / 9;
+            height: 100%;
             object-fit: cover;
-            border-radius: 10px;
-            margin-bottom: 14px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            opacity: 0.75;
+            transition: transform 0.5s ease;
+        }
+
+        .hero-section:hover .hero-image {
+            transform: scale(1.03);
+            opacity: 0.65;
+        }
+
+        .hero-content {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            padding: 40px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.95));
+            width: 100%;
+        }
+
+        .badge {
+            background: var(--brand-green);
+            color: #000;
+            padding: 4px 12px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: inline-block;
         }
 
         .hero-title {
-            font-size: 2.2rem;
-            font-weight: 800;
-            line-height: 1.2;
-            margin-bottom: 8px;
-            color: #111;
+            color: #fff;
+            font-size: 2.8rem;
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 15px;
+            max-width: 900px;
         }
 
-        .hero-snippet {
-            font-size: 1rem;
-            color: var(--text-muted);
-            max-width: 750px;
+        .hero-description {
+            color: #ccc;
+            font-size: 1.1rem;
+            max-width: 700px;
         }
 
         /* =========================
-           ARTICLE GRID
+           CATEGORY GRID
         ========================== */
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .category-name {
+            font-size: 1.5rem;
+            font-weight: 800;
+            position: relative;
+        }
+
+        .category-name::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: var(--brand-green);
+        }
+
+        .view-all {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
 
         .article-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 18px;
+            gap: 20px;
+            margin-bottom: 50px;
         }
 
-        .article-grid a {
+        .card {
             background: var(--card-white);
-            border-radius: 10px;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
             display: flex;
             flex-direction: column;
         }
 
-        .article-grid a:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
         }
 
-        .article-grid img {
+        .card-img {
             width: 100%;
-            height: 160px;
+            height: 180px;
             object-fit: cover;
         }
 
-        .article-content {
-            padding: 14px;
+        .card-body {
+            padding: 15px;
+            flex-grow: 1;
         }
 
-        .article-grid h2 {
-            font-size: 1rem;
-            line-height: 1.35;
+        .card-tag {
+            color: #008a4a;
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
             margin-bottom: 8px;
-            font-weight: 700;
-            color: #111;
+            display: block;
         }
 
-        .article-grid p {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            line-height: 1.4;
+            color: var(--text-main);
             display: -webkit-box;
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
@@ -197,191 +243,146 @@
         /* =========================
            FOOTER
         ========================== */
-
         .footer {
-            background: linear-gradient(90deg, #0a0a0a, #121212);
-            color: #ffffff;
+            background: #000;
+            color: #fff;
+            padding: 60px 20px 30px;
             margin-top: 50px;
-            padding: 40px 20px;
         }
 
-        .footer-container {
-            max-width: 1100px;
+        .footer-grid {
+            max-width: 1200px;
             margin: 0 auto;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 40px;
+            padding-bottom: 40px;
+            border-bottom: 1px solid #333;
         }
 
-        .footer-top {
-            display: flex;
-            justify-content: space-between;
-            gap: 30px;
-            flex-wrap: wrap;
-            margin-bottom: 24px;
-        }
-
-        .footer-brand h3 {
-            font-size: 1.4rem;
-            margin-bottom: 10px;
+        .footer-logo {
+            font-size: 1.5rem;
+            font-weight: 900;
             color: var(--brand-green);
+            margin-bottom: 15px;
         }
 
-        .footer-brand p {
-            color: #cccccc;
-            max-width: 400px;
-            font-size: 0.95rem;
-        }
+        .footer-desc { color: #888; font-size: 0.95rem; line-height: 1.6; }
+        .footer-head { font-weight: 700; margin-bottom: 20px; text-transform: uppercase; color: #fff; }
+        .footer-links a { display: block; margin-bottom: 10px; color: #aaa; font-size: 0.9rem; }
+        .footer-links a:hover { color: var(--brand-green); }
 
-        .footer-links {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .footer-links a {
-            color: #ffffff;
-            font-size: 0.95rem;
-            transition: color 0.2s ease;
-        }
-
-        .footer-links a:hover {
-            color: var(--brand-green);
-        }
-
-        .footer-bottom {
-            border-top: 1px solid rgba(255,255,255,0.08);
-            padding-top: 20px;
-            color: #aaaaaa;
-            font-size: 0.9rem;
+        .footer-copy {
             text-align: center;
+            padding-top: 30px;
+            font-size: 0.85rem;
+            color: #666;
         }
 
         /* =========================
-           MOBILE
+           RESPONSIVE
         ========================== */
-
-        @media (max-width: 900px) {
-            .article-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+        @media (max-width: 1024px) {
+            .article-grid { grid-template-columns: repeat(2, 1fr); }
+            .hero-link { height: 400px; }
+            .hero-title { font-size: 2rem; }
         }
 
-        @media (max-width: 600px) {
-
-            .content-container {
-                padding: 0 12px;
-            }
-
-            .hero-image {
-                border-radius: 0;
-                margin-left: -12px;
-                width: calc(100% + 24px);
-            }
-
-            .hero-title {
-                font-size: 1.65rem;
-            }
-
-            .article-grid {
-                grid-template-columns: 1fr;
-                gap: 14px;
-            }
-
-            .footer-top {
-                flex-direction: column;
-            }
-
-            .footer-links {
-                gap: 14px;
-            }
+        @media (max-width: 650px) {
+            .article-grid { grid-template-columns: 1fr; }
+            .hero-link { height: 350px; }
+            .hero-title { font-size: 1.6rem; }
+            .hero-content { padding: 20px; }
+            .footer-grid { grid-template-columns: 1fr; }
+            .hero-description { display: none; }
         }
     </style>
 </head>
-
 <body>
 
 <!-- HEADER -->
 <header class="header">
-    <a href="/index.html" class="header-title">
-        9ja News Pluse
-    </a>
+    <a href="/" class="header-title">9ja News Pluse</a>
 </header>
 
-<!-- MAIN -->
 <main class="page-wrapper">
-
     <div class="content-container">
 
-        <!-- HERO ARTICLE -->
-        <section class="hero-article">
-
-            <a href="{{LATEST_URL}}">
-
-                <img 
-                    src="{{LATEST_IMAGE}}" 
-                    class="hero-image"
-                    alt="{{LATEST_TITLE}}"
-                    loading="eager"
-                >
-
-                <h1 class="hero-title">
-                    {{LATEST_TITLE}}
-                </h1>
-
-                <p class="hero-snippet">
-                    {{LATEST_DESCRIPTION}}
-                </p>
-
+        <!-- BIG HERO SECTION (LATEST ARTICLE) -->
+        <section class="hero-section">
+            <a href="{{LATEST_URL}}" class="hero-link">
+                <img src="{{LATEST_IMAGE}}" class="hero-image" alt="{{LATEST_TITLE}}">
+                <div class="hero-content">
+                    <span class="badge">Latest News</span>
+                    <h1 class="hero-title">{{LATEST_TITLE}}</h1>
+                    <p class="hero-description">{{LATEST_DESCRIPTION}}</p>
+                </div>
             </a>
-
         </section>
 
-        <!-- ARTICLE GRID -->
-        <section class="article-grid">
+        <!-- CATEGORY: POLITICS -->
+        <section>
+            <div class="category-header">
+                <h2 class="category-name">Politics</h2>
+                <a href="/category/politics" class="view-all">View All</a>
+            </div>
+            <div class="article-grid">
+                {{POLITICS_ARTICLES}}
+                <a href="#" class="card">
+                    <img src="https://via.placeholder.com/400x250" class="card-img" alt="Headline">
+                    <div class="card-body">
+                        <span class="card-tag">National</span>
+                        <h3 class="card-title">Senate Approves New Economic Stimulus Package for Small Businesses</h3>
+                    </div>
+                </a>
+            </div>
+        </section>
 
-            {{ALL_ARTICLES_GRID}}
-
+        <!-- CATEGORY: ENTERTAINMENT -->
+        <section>
+            <div class="category-header">
+                <h2 class="category-name">Entertainment</h2>
+                <a href="/category/entertainment" class="view-all">View All</a>
+            </div>
+            <div class="article-grid">
+                {{ENTERTAINMENT_ARTICLES}}
+                <a href="#" class="card">
+                    <img src="https://via.placeholder.com/400x250" class="card-img" alt="Headline">
+                    <div class="card-body">
+                        <span class="card-tag">Afrobeats</span>
+                        <h3 class="card-title">Top 10 Music Collaborations That Defined the Nigerian Sound This Year</h3>
+                    </div>
+                </a>
+            </div>
         </section>
 
     </div>
-
 </main>
 
 <!-- FOOTER -->
 <footer class="footer">
-
-    <div class="footer-container">
-
-        <div class="footer-top">
-
-            <div class="footer-brand">
-                <h3>9ja News Pluse</h3>
-
-                <p>
-                    Nigeria's digital source for breaking news, politics,
-                    sports, entertainment and trending updates across the world.
-                </p>
-            </div>
-
-            <div class="footer-links">
-
-                <a href="/about/about.html">
-                    About Us
-                </a>
-
-                <a href="/privacy-policy/privacy.html">
-                    Privacy Policy
-                </a>
-
-            </div>
-
+    <div class="footer-grid">
+        <div class="footer-info">
+            <div class="footer-logo">9ja News Pluse</div>
+            <p class="footer-desc">Your trusted digital source for breaking news, politics, and trending updates across Nigeria and the world.</p>
         </div>
-
-        <div class="footer-bottom">
-            © 2026 9ja News Pluse. All rights reserved.
+        <div class="footer-links">
+            <h4 class="footer-head">Company</h4>
+            <!-- Links updated to root folder files -->
+            <a href="/about.html">About Us</a>
+            <a href="/contact">Contact</a>
+            <a href="/advertise">Advertise</a>
         </div>
-
+        <div class="footer-links">
+            <h4 class="footer-head">Legal</h4>
+            <!-- Links updated to root folder files -->
+            <a href="/privacy.html">Privacy Policy</a>
+            <a href="/terms">Terms of Service</a>
+        </div>
     </div>
-
+    <div class="footer-copy">
+        &copy; 2024 9ja News Pluse. All rights reserved.
+    </div>
 </footer>
 
 </body>

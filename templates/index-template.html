@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- SEO -->
     <title>9ja News Pluse | Nigeria's Latest Breaking Updates</title>
 
     <meta name="description" content="Stay updated with the latest news, sports, entertainment and trending stories in Nigeria.">
@@ -13,7 +12,6 @@
 
     <link rel="canonical" href="https://blog.pluse.name.ng/">
 
-    <!-- OPEN GRAPH -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="9ja News Pluse">
     <meta property="og:title" content="9ja News Pluse - Latest Updates">
@@ -23,7 +21,6 @@
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="675">
 
-    <!-- TWITTER -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="9ja News Pluse">
     <meta name="twitter:description" content="Breaking news and trending stories.">
@@ -31,13 +28,11 @@
 
     <style>
         :root {
-            --brand-green: #00ff88;
+            --brand-green: #00d26a; 
             --brand-dark: #000000;
-            --site-bg: #f4f6f8;
-            --card-white: #ffffff;
+            --site-bg: #ffffff;
             --text-main: #111111;
             --text-muted: #666666;
-            --border-light: #e8e8e8;
             --header-height: 60px;
         }
 
@@ -48,27 +43,16 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             background-color: var(--site-bg);
             color: var(--text-main);
+            line-height: 1.5;
             -webkit-font-smoothing: antialiased;
         }
 
-        img {
-            max-width: 100%;
-            display: block;
-        }
+        a { text-decoration: none; color: inherit; }
 
-        a {
-            text-decoration: none;
-            color: inherit;
-        }
-
-        /* =========================
-           HEADER
-        ========================== */
-
+        /* HEADER - FIXED BLACK BG WITH GREEN TEXT */
         .header {
             background: var(--brand-dark);
             height: var(--header-height);
@@ -78,66 +62,54 @@
             left: 0;
             display: flex;
             align-items: center;
-            justify-content: space-between;
             padding: 0 20px;
             z-index: 1000;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
 
         .header-title {
             color: var(--brand-green);
             font-size: 1.25rem;
-            font-weight: 800;
+            font-weight: 900;
             letter-spacing: -0.5px;
         }
 
-        /* =========================
-           MAIN LAYOUT
-        ========================== */
-
+        /* MAIN WRAPPER */
         .page-wrapper {
-            padding-top: calc(var(--header-height) + 20px);
-            padding-bottom: 50px;
-        }
-
-        .content-container {
+            padding-top: var(--header-height);
             max-width: 1100px;
             margin: 0 auto;
-            padding: 0 16px;
         }
 
-        /* =========================
-           HERO SECTION (OVERLAY)
-        ========================== */
-
+        /* HERO SECTION - IMAGE OVERLAY */
         .hero-article {
-            margin-bottom: 32px;
             position: relative;
-            border-radius: 12px;
+            width: 100%;
+            height: 65vh;
+            min-height: 380px;
             overflow: hidden;
-            background: #000;
+            margin-bottom: 24px;
         }
 
         .hero-article a {
             display: block;
-            position: relative;
+            width: 100%;
+            height: 100%;
         }
 
         .hero-image {
             width: 100%;
-            aspect-ratio: 16 / 9;
+            height: 100%;
             object-fit: cover;
-            display: block;
-            opacity: 0.9;
         }
 
         .hero-overlay {
             position: absolute;
             bottom: 0;
             left: 0;
-            right: 0;
-            padding: 60px 30px 30px;
-            background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 40%, transparent 100%);
+            width: 100%;
+            padding: 60px 20px 25px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.95));
             color: #ffffff;
         }
 
@@ -146,249 +118,137 @@
             font-weight: 800;
             line-height: 1.1;
             margin-bottom: 12px;
-            color: #ffffff;
         }
 
         .hero-snippet {
-            font-size: 1.1rem;
-            color: #dddddd;
-            max-width: 800px;
+            font-size: 1.05rem;
+            opacity: 0.9;
+            max-width: 850px;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
 
-        /* =========================
-           ARTICLE GRID
-        ========================== */
-
+        /* ARTICLE GRID */
         .article-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 24px;
+            padding: 0 16px 60px;
         }
 
         .article-card {
-            background: var(--card-white);
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            transition: transform 0.2s ease;
             display: flex;
             flex-direction: column;
         }
 
-        .article-card:hover {
-            transform: translateY(-4px);
-        }
-
         .article-card img {
             width: 100%;
-            height: 200px;
+            aspect-ratio: 16 / 9;
             object-fit: cover;
-        }
-
-        .article-content {
-            padding: 16px;
+            border-radius: 4px;
+            margin-bottom: 14px;
         }
 
         .category-tag {
             color: var(--brand-green);
-            font-size: 0.75rem;
             font-weight: 700;
+            font-size: 0.8rem;
             text-transform: uppercase;
-            margin-bottom: 8px;
-            display: block;
             letter-spacing: 0.5px;
+            margin-bottom: 6px;
         }
 
         .article-card h2 {
             font-size: 1.15rem;
-            line-height: 1.3;
             font-weight: 800;
-            color: var(--brand-dark);
+            line-height: 1.35;
+            color: var(--text-main);
         }
 
-        /* =========================
-           FOOTER
-        ========================== */
-
+        /* FOOTER */
         .footer {
-            background: var(--brand-dark);
+            background: #000000;
             color: #ffffff;
-            margin-top: 50px;
-            padding: 40px 20px;
-        }
-
-        .footer-container {
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        .footer-top {
-            display: flex;
-            justify-content: space-between;
-            gap: 30px;
-            flex-wrap: wrap;
-            margin-bottom: 24px;
+            padding: 50px 20px;
+            margin-top: 20px;
         }
 
         .footer-brand h3 {
-            font-size: 1.4rem;
-            margin-bottom: 10px;
             color: var(--brand-green);
+            font-size: 1.4rem;
+            margin-bottom: 12px;
         }
 
         .footer-brand p {
-            color: #cccccc;
-            max-width: 400px;
             font-size: 0.95rem;
+            color: #999;
+            max-width: 450px;
+            margin-bottom: 30px;
+            line-height: 1.6;
         }
 
         .footer-links {
             display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-            align-items: center;
+            gap: 25px;
+            border-top: 1px solid #222;
+            padding-top: 25px;
         }
 
         .footer-links a {
-            color: #ffffff;
-            font-size: 0.95rem;
-            transition: color 0.2s ease;
+            font-size: 0.9rem;
+            color: #bbb;
+            transition: color 0.2s;
         }
 
         .footer-links a:hover {
             color: var(--brand-green);
         }
 
-        .footer-bottom {
-            border-top: 1px solid rgba(255,255,255,0.08);
-            padding-top: 20px;
-            color: #aaaaaa;
-            font-size: 0.9rem;
-            text-align: center;
-        }
-
-        /* =========================
-           MOBILE RESPONSIVENESS
-        ========================== */
-
-        @media (max-width: 900px) {
-            .article-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .hero-title {
-                font-size: 1.8rem;
-            }
-        }
-
-        @media (max-width: 600px) {
-            .hero-overlay {
-                padding: 40px 15px 20px;
-            }
-            .hero-title {
-                font-size: 1.5rem;
-            }
-            .hero-snippet {
-                font-size: 0.95rem;
-            }
-            .article-grid {
-                grid-template-columns: 1fr;
-            }
+        /* MOBILE ADJUSTMENTS */
+        @media (max-width: 768px) {
+            .hero-title { font-size: 1.8rem; }
+            .article-grid { grid-template-columns: 1fr; gap: 30px; }
+            .hero-article { height: 50vh; }
         }
     </style>
 </head>
 
 <body>
 
-<!-- HEADER -->
 <header class="header">
-    <a href="https://blog.pluse.name.ng/" class="header-title">
-        9ja News Pluse
-    </a>
+    <a href="/index.html" class="header-title">9ja News Pluse</a>
 </header>
 
-<!-- MAIN -->
 <main class="page-wrapper">
 
-    <div class="content-container">
+    <section class="hero-article">
+        <a href="{{LATEST_URL}}">
+            <img src="{{LATEST_IMAGE}}" class="hero-image" alt="{{LATEST_TITLE}}">
+            <div class="hero-overlay">
+                <h1 class="hero-title">{{LATEST_TITLE}}</h1>
+                <p class="hero-snippet">{{LATEST_DESCRIPTION}}</p>
+            </div>
+        </a>
+    </section>
 
-        <!-- HERO ARTICLE -->
-        <section class="hero-article">
-
-            <a href="{{LATEST_URL}}">
-
-                <img 
-                    src="{{LATEST_IMAGE}}" 
-                    class="hero-image"
-                    alt="{{LATEST_TITLE}}"
-                    loading="eager"
-                >
-
-                <div class="hero-overlay">
-                    <h1 class="hero-title">
-                        {{LATEST_TITLE}}
-                    </h1>
-
-                    <p class="hero-snippet">
-                        {{LATEST_DESCRIPTION}}
-                    </p>
-                </div>
-
-            </a>
-
-        </section>
-
-        <!-- ARTICLE GRID -->
-        <!-- Note: This dynamic tag must output the .article-card structure defined in CSS -->
-        <section class="article-grid">
-
-            {{ALL_ARTICLES_GRID}}
-
-        </section>
-
-    </div>
+    <section class="article-grid">
+        {{ALL_ARTICLES_GRID}}
+    </section>
 
 </main>
 
-<!-- FOOTER -->
 <footer class="footer">
-
-    <div class="footer-container">
-
-        <div class="footer-top">
-
-            <div class="footer-brand">
-                <h3>9ja News Pluse</h3>
-
-                <p>
-                    Nigeria's digital source for breaking news, politics,
-                    sports, entertainment and trending updates across the world.
-                </p>
-            </div>
-
-            <div class="footer-links">
-
-                <a href="/about.html">
-                    About Us
-                </a>
-
-                <a href="/privacy.html">
-                    Privacy Policy
-                </a>
-
-            </div>
-
-        </div>
-
-        <div class="footer-bottom">
-            © 2026 9ja News Pluse. All rights reserved.
-        </div>
-
+    <div class="footer-brand">
+        <h3>9ja News Pluse</h3>
+        <p>Nigeria's digital source for breaking news, politics, sports, entertainment and trending updates across the world.</p>
     </div>
 
+    <div class="footer-links">
+        <a href="/about.html">About Us</a>
+        <a href="/privacy.html">Privacy Policy</a>
+    </div>
 </footer>
 
 </body>

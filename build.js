@@ -8,7 +8,7 @@ const articles = JSON.parse(
 
 // NEW: Load the pages data
 const pagesData = JSON.parse(
-  fs.readFileSync("./data/pages.json", "utf-8")
+  fs.readFileSync("./data/pages-data.json", "utf-8")
 );
 
 const homeTemplate = fs.readFileSync(
@@ -145,11 +145,11 @@ fs.writeFileSync(path.join(distDir, "about.html"), finalAbout);
 const finalPrivacy = privacyTemplate
   .replace(/__TITLE__/g, pagesData.privacy.title)
   .replace(/__DESCRIPTION__/g, pagesData.privacy.description)
-  .replace(/__CANONICAL_URL__/g, `${config.baseUrl}/privacy-policy.html`)
+  .replace(/__CANONICAL_URL__/g, `${config.baseUrl}/privacy.html`)
   .replace(/__DATE_MODIFIED__/g, pagesData.privacy.dateModified)
   .replace(/__CONTENT__/g, pagesData.privacy.content);
 
-fs.writeFileSync(path.join(distDir, "privacy-policy.html"), finalPrivacy);
+fs.writeFileSync(path.join(distDir, "privacy.html"), finalPrivacy);
 
 // 3. Build Author Page (Dynamic Feed for Ifeanyi)
 const authorArticles = ranked.map(post => `
@@ -166,13 +166,12 @@ const finalAuthor = authorTemplate
   .replace(/__AUTHOR_NAME__/g, pagesData.author.name)
   .replace(/__AUTHOR_BIO__/g, pagesData.author.bio)
   .replace(/__AUTHOR_IMAGE__/g, pagesData.author.image)
-  .replace(/__TWITTER_URL__/g, pagesData.author.twitter)
-  .replace(/__INSTAGRAM_URL__/g, pagesData.author.instagram)
+  .replace(/___ORCID_URL__/g, pagesData.author.instagram)
   .replace(/__ARTICLE_COUNT__/g, ranked.length) // Uses total ranked count
   .replace(/__LATEST_POSTS_DYNAMIC__/g, authorArticles)
   .replace(/__CANONICAL_URL__/g, `${config.baseUrl}/authors/ifeanyi-okoye.html`);
 
-fs.writeFileSync(path.join(distDir, "author-ifeanyi.html"), finalAuthor);
+fs.writeFileSync(path.join(distDir, "ifeanyi-okoye.html"), finalAuthor);
 
 
 /* =========================================================

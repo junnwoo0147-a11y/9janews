@@ -6,7 +6,7 @@ const articles = JSON.parse(
   fs.readFileSync("./data/articles.json", "utf-8")
 );
 
-// NEW: Load the pages data
+// Load the pages data
 const pagesData = JSON.parse(
   fs.readFileSync("./data/pages-data.json", "utf-8")
 );
@@ -21,7 +21,7 @@ const articleTemplate = fs.readFileSync(
   "utf-8"
 );
 
-// NEW: Load the specific templates you requested
+// Load static templates
 const aboutTemplate = fs.readFileSync("./about/about.html", "utf-8");
 const privacyTemplate = fs.readFileSync("./privacy-policy/privacy.html", "utf-8");
 const authorTemplate = fs.readFileSync("./authors/ifeanyi-okoye.html", "utf-8");
@@ -30,13 +30,13 @@ const distDir = "./dist";
 const articleOut = path.join(distDir, "articles");
 
 /* =========================================================
-   PREPARE DIRECTORIES
+   HELPERS
 ========================================================= */
 fs.mkdirSync(articleOut, { recursive: true });
 
-/* =========================================================
-   DISCOVER-LIKE SCORING SYSTEM
-========================================================= */
+const formatSections = (sections) => 
+  (sections || []).map(s => `<h3>${s.heading || s.title}</h3><p>${s.text || s.body}</p>`).join("");
+
 function scoreArticle(article) {
   let score = 0;
   const daysOld = (Date.now() - new Date(article.datePublished)) / (1000 * 60 * 60 * 24);
@@ -47,19 +47,6 @@ function scoreArticle(article) {
   return score;
 }
 
-/* =========================================================
-   PREPARE ARTICLES
-========================================================= */
-const ranked = articles
-  .map(article => ({
-    ...article,
-    score: scoreArticle(article)
-  }))
-  .sort((a, b) => b.score - a.score);
-
-/* =========================================================
-   SMART RELATED ARTICLES
-========================================================= */
 function getRelated(article, all) {
   const normalize = str => (str || "").toLowerCase().replace(/[^a-z0-9 ]/g, "").split(" ").filter(Boolean);
   const articleWords = new Set([...normalize(article.title), ...(article.category ? normalize(article.category) : [])]);
@@ -75,6 +62,16 @@ function getRelated(article, all) {
     })
     .sort((a, b) => b.score - a.score);
 }
+
+/* =========================================================
+   PREPARE ARTICLES
+========================================================= */
+const ranked = articles
+  .map(article => ({
+    ...article,
+    score: scoreArticle(article)
+  }))
+  .sort((a, b) => b.score - a.score);
 
 /* =========================================================
    BUILD ARTICLE PAGES
@@ -128,60 +125,57 @@ const homepage = homeTemplate
 
 fs.writeFileSync(path.join(distDir, "index.html"), homepage);
 
-const fs = require('fs');
-const path = require('path');
-
 /* =========================================================
    STATIC PAGES → INJECT DATA & BUILD
 ========================================================= */
 
 // 1. Build About Page
 const finalAbout = aboutTemplate
-  .replace(/__TITLE__/g, pages.about.title)
-  .replace(/__DESCRIPTION__/g, pages.about.description)
-  .replace(/__CANONICAL_URL__/g, pages.about.canonical)
-  .replace(/__CONTENT__/g, formatSections(pages.about.content_sections));
+  .replace(/__TITLE__/g, pagesData.pages.about.title)
+  .replace(/__DESCRIPTION__/g, pagesData.pages.about.description)
+  .replace(/__CANONICAL_URL__/g, pagesData.pages.about.canonical)
+  .replace(/__CONTENT__/g, formatSections(pagesData.pages.about.content_sections));
 
 fs.writeFileSync(path.join(distDir, "about.html"), finalAbout);
 
 // 2. Build Privacy Page
 const finalPrivacy = privacyTemplate
-  .replace(/__TITLE__/g, pages.privacy.title)
-  .replace(/__DESCRIPTION__/g, pages.privacy.description)
-  .replace(/__CANONICAL_URL__/g, pages.privacy.canonical)
-  .replace(/__DATE_MODIFIED__/g, pages.privacy.dateModified)
-  .replace(/__CONTENT__/g, formatSections(pages.privacy.sections));
+  .replace(/__TITLE__/g, pagesData.pages.privacy.title)
+  .replace(/__DESCRIPTION__/g, pagesData.pages.privacy.description)
+  .replace(/__CANONICAL_URL__/g, pagesData.pages.privacy.canonical)
+  .replace(/__DATE_MODIFIED__/g, pagesData.pages.privacy.dateModified || new Date().toDateString())
+  .replace(/__CONTENT__/g, formatSections(pagesData.pages.privacy.sections));
 
 fs.writeFileSync(path.join(distDir, "privacy.html"), finalPrivacy);
 
-// 3. Build Author Page (Dynamic Feed)
-// Find the specific author from the array
-const authorData = pages.authors.find(a => a.slug === "ifeanyi-okoye");
+// 3. Build Author Page
+const authorData = pagesData.pages.authors.find(a => a.slug === "ifeanyi-okoye");
 
-const authorArticles = ranked.map(post => `
-    <a href="articles/${post.slug}.html" class="post-card">
-        <img src="${post.image}" class="post-thumb" alt="${post.title}">
-        <div class="post-info">
-            <h2>${post.title}</h2>
-            <span class="post-meta">${new Date(post.datePublished).toDateString()}</span>
-        </div>
-    </a>
-`).join("");
+if (authorData) {
+  const authorArticles = ranked.map(post => `
+      <a href="articles/${post.slug}.html" class="post-card">
+          <img src="${post.image}" class="post-thumb" alt="${post.title}">
+          <div class="post-info">
+              <h2>${post.title}</h2>
+              <span class="post-meta">${new Date(post.datePublished).toDateString()}</span>
+          </div>
+      </a>
+  `).join("");
 
-const finalAuthor = authorTemplate
-  .replace(/__AUTHOR_NAME__/g, authorData.name)
-  .replace(/__AUTHOR_BIO__/g, authorData.bio)
-  .replace(/__AUTHOR_IMAGE__/g, authorData.image)
-  .replace(/___ORCID_URL__/g, authorData.social_url) // Mapped to social_url in JSON
-  .replace(/__ARTICLE_COUNT__/g, ranked.length)
-  .replace(/__LATEST_POSTS_DYNAMIC__/g, authorArticles)
-  .replace(/__CANONICAL_URL__/g, authorData.seo.canonical);
+  const finalAuthor = authorTemplate
+    .replace(/__AUTHOR_NAME__/g, authorData.name)
+    .replace(/__AUTHOR_BIO__/g, authorData.bio)
+    .replace(/__AUTHOR_IMAGE__/g, authorData.image)
+    .replace(/___ORCID_URL__/g, authorData.social_url)
+    .replace(/__ARTICLE_COUNT__/g, ranked.length)
+    .replace(/__LATEST_POSTS_DYNAMIC__/g, authorArticles)
+    .replace(/__CANONICAL_URL__/g, authorData.seo.canonical);
 
-fs.writeFileSync(path.join(distDir, "ifeanyi-okoye.html"), finalAuthor);
-
+  fs.writeFileSync(path.join(distDir, "ifeanyi-okoye.html"), finalAuthor);
+}
 
 /* =========================================================
-   GENERATE RSS FEED
+   FEED & SITEMAP GENERATION
 ========================================================= */
 const rssItems = ranked.map(article => `
 <item>
@@ -190,8 +184,7 @@ const rssItems = ranked.map(article => `
   <guid>${config.baseUrl}/articles/${article.slug}.html</guid>
   <pubDate>${new Date(article.datePublished).toUTCString()}</pubDate>
   <description><![CDATA[${article.description || article.title}]]></description>
-</item>
-`).join("");
+</item>`).join("");
 
 const rssFeed = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
@@ -199,35 +192,28 @@ const rssFeed = `<?xml version="1.0" encoding="UTF-8"?>
 <title>${config.siteName}</title>
 <link>${config.baseUrl}</link>
 <description>Latest news from ${config.siteName}</description>
-<language>en-us</language>
 ${rssItems}
 </channel>
 </rss>`;
 
 fs.writeFileSync(path.join(distDir, "feed.xml"), rssFeed);
 
-/* =========================================================
-   GENERATE SITEMAP
-========================================================= */
 const sitemapUrls = ranked.map(article => `
 <url>
   <loc>${config.baseUrl}/articles/${article.slug}.html</loc>
   <lastmod>${new Date(article.datePublished).toISOString()}</lastmod>
-</url>
-`).join("");
+</url>`).join("");
 
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-<url>
-  <loc>${config.baseUrl}</loc>
-</url>
+<url><loc>${config.baseUrl}</loc></url>
 ${sitemapUrls}
 </urlset>`;
 
 fs.writeFileSync(path.join(distDir, "sitemap.xml"), sitemap);
 
 /* =========================================================
-   COPY ASSETS
+   COPY ASSETS & ROBOTS
 ========================================================= */
 function copyFolder(src, dest) {
   if (!fs.existsSync(src)) return;
@@ -241,9 +227,6 @@ function copyFolder(src, dest) {
 }
 copyFolder("./assets", path.join(distDir, "assets"));
 
-/* =========================================================
-   ROBOTS.TXT
-========================================================= */
 const robots = `User-agent: *\nAllow: /\n\nSitemap: ${config.baseUrl}/sitemap.xml`;
 fs.writeFileSync(path.join(distDir, "robots.txt"), robots);
 

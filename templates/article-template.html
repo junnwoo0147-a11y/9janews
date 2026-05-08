@@ -10,7 +10,6 @@
     <meta name="googlebot" content="index, follow">
     <link rel="canonical" href="__CANONICAL_URL__">
 
-    <!-- RSS and Sitemap updated to blog subdomain -->
     <link rel="alternate" type="application/rss+xml" title="9ja News RSS Feed" href="https://blog.pluse.name.ng/feed.xml">
     <link rel="sitemap" type="application/xml" title="Sitemap" href="https://blog.pluse.name.ng/sitemap.xml">
 
@@ -30,7 +29,6 @@
 
     <link rel="preload" as="image" href="__IMAGE_URL__">
 
-    <!-- Schema.org updated to blog subdomain -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -64,7 +62,6 @@
         :root {
             --green: #00d26a;
             --green-dark: #00b85c;
-            --green-glow: #00ff88;
             --bg: #f4f7f5;
             --text: #121212;
             --muted: #666;
@@ -80,6 +77,9 @@
             background: var(--bg);
             color: var(--text);
             line-height: 1.7;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
 
         a { text-decoration: none; color: inherit; }
@@ -99,13 +99,13 @@
 
         .header-title { color: #fff; font-weight: 800; }
         .back-btn { color: #fff; font-size: 0.9rem; opacity: 0.9; }
-        .back-btn:hover { opacity: 1; }
 
         /* WRAPPER */
         .wrapper {
             max-width: 780px;
             margin: 0 auto;
-            padding: 90px 16px 60px;
+            padding: 90px 16px 40px;
+            flex: 1;
         }
 
         /* CARD */
@@ -119,7 +119,6 @@
 
         h1 { font-size: 2rem; font-weight: 800; margin-bottom: 10px; }
         
-        /* META SECTION & TWITTER LOGO */
         .meta { 
             font-size: 0.85rem; 
             color: var(--muted); 
@@ -134,16 +133,13 @@
         .twitter-icon {
             display: inline-flex;
             align-items: center;
-            transition: transform 0.2s ease;
         }
-        .twitter-icon:hover { transform: scale(1.1); }
         .twitter-icon svg { width: 14px; height: 14px; fill: var(--twitter-color); }
 
-        /* CONTENT */
         .featured img { width: 100%; border-radius: 10px; margin-bottom: 15px; }
         .article-body p { margin-bottom: 1.5rem; }
 
-        /* IMPROVED ADS */
+        /* ADS */
         .ad-slot {
             background: #fafafa;
             border-top: 1px solid var(--border);
@@ -153,15 +149,6 @@
             margin: 30px 0;
             font-size: 0.7rem;
             color: var(--muted);
-            clear: both;
-        }
-        .ad-slot::before {
-            content: "ADVERTISEMENT";
-            display: block;
-            margin-bottom: 10px;
-            letter-spacing: 1px;
-            font-weight: 700;
-            opacity: 0.5;
         }
 
         /* RELATED SECTION */
@@ -170,15 +157,34 @@
             padding: 18px;
             border-radius: 12px;
             color: #fff;
-            box-shadow: 0 10px 25px rgba(0,255,120,0.15);
             margin-bottom: 20px;
         }
 
         .related h2 { margin-bottom: 12px; font-size: 1.1rem; }
         .related-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .related-item { background: rgba(255,255,255,0.15); border-radius: 10px; overflow: hidden; backdrop-filter: blur(6px); }
+        .related-item { background: rgba(255,255,255,0.15); border-radius: 10px; overflow: hidden; }
         .related-item img { width: 100%; height: 120px; object-fit: cover; }
         .related-item div { padding: 10px; font-size: 0.9rem; font-weight: 600; }
+
+        /* FOOTER */
+        .footer {
+            background: var(--white);
+            padding: 30px 20px;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+        .footer-links {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        .footer-links a:hover {
+            color: var(--green-dark);
+            text-decoration: underline;
+        }
 
         @media(max-width:600px){
             .related-grid { grid-template-columns: 1fr; }
@@ -198,9 +204,8 @@
     <div class="card">
         <h1>__TITLE__</h1>
         <div class="meta">
-            By <a class="author-link" href="https://blog.pluse.name.ng/ifeanyi-okoye.html">ifeanyi clement okoye</a>
+            By <a class="author-link" href="https://blog.pluse.name.ng/authors/ifeanyi-okoye.html">ifeanyi clement okoye</a>
             <a href="https://x.com/sirifeanyiokoye" class="twitter-icon" target="_blank" rel="noopener">
-                <!-- X (Twitter) SVG Icon -->
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>
             </a>
             • __DISPLAY_DATE__
@@ -211,7 +216,6 @@
         </div>
 
         <div id="article-body" class="article-body">
-            <p><b>__INTRO_PARAGRAPH__</b></p>
             __CONTENT__
         </div>
     </div>
@@ -229,23 +233,25 @@
 
 </div>
 
-<div id="ad-logic-1" style="display:none;">
-    <div class="ad-slot">
-        Ad Space 1
+<footer class="footer">
+    <div class="footer-links">
+        <a href="https://blog.pluse.name.ng/about.html">About Us</a>
+        <a href="https://blog.pluse.name.ng/privacy.html">Privacy Policy</a>
     </div>
-</div>
+    <p>&copy; 2026 9ja News Pluse. All rights reserved.</p>
+</footer>
 
+<!-- Hidden Ad Templates -->
+<div id="ad-logic-1" style="display:none;">
+    <div class="ad-slot">Ad Space 1</div>
+</div>
 <div id="ad-logic-2" style="display:none;">
-    <div class="ad-slot">
-        Ad Space 2
-    </div>
+    <div class="ad-slot">Ad Space 2</div>
 </div>
 
 <script>
-    // Automatic ad placement logic
     document.addEventListener("DOMContentLoaded", function() {
         const body = document.getElementById('article-body');
-        
         if (body) {
             const paragraphs = body.getElementsByTagName('p');
             const ad1 = document.getElementById('ad-logic-1').innerHTML;
@@ -254,7 +260,6 @@
             if (paragraphs.length >= 2) {
                 paragraphs[1].insertAdjacentHTML('afterend', ad1);
             }
-            
             if (paragraphs.length >= 5) {
                 paragraphs[4].insertAdjacentHTML('afterend', ad2);
             } else if (paragraphs.length > 2) {

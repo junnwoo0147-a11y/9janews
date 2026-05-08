@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>__TITLE__ | 9ja News Pluse</title>
+    <meta name="description" content="__DESCRIPTION__">
+    <link rel="canonical" href="__CANONICAL_URL__">
+
+    <style>
+        :root {
+            --green: #00d26a;
+            --green-dark: #00b85c;
+            --bg: #f4f7f5;
+            --text: #121212;
+            --muted: #666;
+            --white: #fff;
+            --border: #e7e7e7;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial; background: var(--bg); color: var(--text); line-height: 1.6; }
+        
+        .header { background: linear-gradient(90deg, var(--green), var(--green-dark)); padding: 14px 20px; position: fixed; width: 100%; top: 0; z-index: 1000; display:flex; justify-content:space-between; align-items:center; }
+        .header-title { color: #fff; font-weight: 800; text-decoration:none; }
+
+        .wrapper { max-width: 780px; margin: 0 auto; padding: 90px 16px 60px; }
+        .card { background: var(--white); padding: 30px; border-radius: 10px; box-shadow: 0 3px 12px rgba(0,0,0,0.04); }
+
+        h1 { font-size: 2rem; margin-bottom: 10px; }
+        .last-updated { font-size: 0.85rem; color: var(--muted); margin-bottom: 30px; display: block; }
+        
+        /* Policy Content Styling */
+        .policy-content h2 { font-size: 1.4rem; margin: 25px 0 10px; color: var(--green-dark); }
+        .policy-content p { margin-bottom: 1.2rem; color: #333; }
+        .policy-content ul { margin-left: 20px; margin-bottom: 20px; }
+    </style>
+</head>
+
+<body>
+
+<header class="header">
+    <a href="/index.html" class="header-title">9ja News Pluse</a>
+    <a style="color:#fff; font-size:0.9rem; text-decoration:none;" href="javascript:history.back()">← back</a>
+</header>
+
+<div class="wrapper">
+    <div class="card">
+        <h1>__TITLE__</h1>
+        <span class="last-updated">Last Modified: __DATE_MODIFIED__</span>
+
+        <div class="policy-content">
+            __CONTENT__
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

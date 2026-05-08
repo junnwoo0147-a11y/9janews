@@ -10,9 +10,8 @@
     <meta name="googlebot" content="index, follow">
     <link rel="canonical" href="__CANONICAL_URL__">
 
-    <!-- Updated RSS and Sitemap URLs -->
-    <link rel="alternate" type="application/rss+xml" title="9ja News RSS Feed" href="https://blog.pluse.name.ng/feed.xml">
-    <link rel="sitemap" type="application/xml" title="Sitemap" href="https://blog.pluse.name.ng/sitemap.xml">
+    <link rel="alternate" type="application/rss+xml" title="9ja News RSS Feed" href="https://pluse.name.ng/feed.xml">
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="https://pluse.name.ng/sitemap.xml">
 
     <meta property="og:type" content="article">
     <meta property="og:site_name" content="9ja News Pluse">
@@ -45,14 +44,14 @@
       "author": {
         "@type": "Person",
         "name": "Ifeanyi Clement Okoye",
-        "url": "https://blog.pluse.name.ng/authors/ifeanyi-okoye.html"
+        "url": "https://pluse.name.ng/authors/ifeanyi-okoye.html"
       },
       "publisher": {
         "@type": "Organization",
         "name": "9ja News Pluse",
         "logo": {
           "@type": "ImageObject",
-          "url": "https://blog.pluse.name.ng/logo.png"
+          "url": "https://pluse.name.ng/logo.png"
         }
       },
       "description": "__DESCRIPTION__"
@@ -178,7 +177,7 @@
     <div class="card">
         <h1>__TITLE__</h1>
         <div class="meta">
-            By <a class="author-link" href="https://blog.pluse.name.ng/ifeanyi-okoye.html">ifeanyi clement okoye</a>
+            By <a class="author-link" href="https://pluse.name.ng/authors/ifeanyi-okoye.html">ifeanyi clement okoye</a>
             • __DISPLAY_DATE__
         </div>
 
@@ -218,6 +217,7 @@
 </div>
 
 <script>
+    // This script places ads one by one inside the text automatically without breaking the layout
     document.addEventListener("DOMContentLoaded", function() {
         const body = document.getElementById('article-body');
         
@@ -227,12 +227,15 @@
             const ad2 = document.getElementById('ad-logic-2').innerHTML;
 
             if (paragraphs.length >= 2) {
+                // Place Ad 1 after the second paragraph
                 paragraphs[1].insertAdjacentHTML('afterend', ad1);
             }
             
             if (paragraphs.length >= 5) {
+                // Place Ad 2 after the fifth paragraph
                 paragraphs[4].insertAdjacentHTML('afterend', ad2);
             } else if (paragraphs.length > 2) {
+                // If article is short (between 3 to 4 paragraphs), put Ad 2 at the end of the text
                 body.insertAdjacentHTML('beforeend', ad2);
             }
         }

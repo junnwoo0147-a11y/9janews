@@ -1,0 +1,54 @@
+{
+  "site_config": {
+    "site_name": "9ja News Pluse",
+    "base_url": "https://pluse.name.ng",
+    "contact_email": "team@pluse.name.ng"
+  },
+  "pages": {
+    "about": {
+      "title": "About Us | 9ja News Pluse",
+      "description": "Learn about 9ja News — your trusted source for breaking news, politics, sports, and trending stories in Nigeria.",
+      "canonical": "https://pluse.name.ng/about/about.html",
+      "content_sections": [
+        {
+          "heading": "About 9ja News Pluse",
+          "text": "9ja News pluse is a fast-growing digital media platform focused on delivering accurate, timely, and engaging news stories from Nigeria and around the world. We cover a wide range of topics including politics, sports, entertainment, business, and trending stories that matter to everyday Nigerians."
+        },
+        {
+          "heading": "Our Vision",
+          "text": "To become one of Nigeria’s most trusted online news platforms by delivering high-quality journalism and real-time updates."
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Privacy Policy | 9ja News Pluse",
+      "description": "Privacy Policy for 9ja News Pluse. Learn how we collect, use, and protect your data.",
+      "canonical": "https://pluse.name.ng/privacy-policy/privacy.html",
+      "sections": [
+        {
+          "title": "Information We Collect",
+          "body": "We may collect non-personal information such as browser type, device, and pages visited to improve user experience."
+        },
+        {
+          "title": "Cookies",
+          "body": "We use cookies to enhance your experience. You can disable cookies through your browser settings."
+        }
+      ]
+    },
+    "authors": [
+      {
+        "slug": "ifeanyi-okoye",
+        "name": "Ifeanyi Clement Okoye",
+        "role": "Publisher & Writer • 9ja News Pluse",
+        "image": "https://blog.pluse.name.ng/assets/images/author.jpg",
+        "bio": "Ifeanyi Clement Okoye is a Nigerian-based writer and publisher at 9ja News. He covers breaking news, politics, sports, and entertainment with a focus on clarity, speed, and accuracy for digital audiences.",
+        "meta_label": "ORCID ID • GitHub Verified Profile • Digital Journalist Profile",
+        "seo": {
+          "title": "Ifeanyi Clement Okoye | Author at 9ja News Pluse",
+          "description": "Ifeanyi Clement Okoye is an author and publisher at 9ja News covering politics, sports, entertainment, and breaking news in Nigeria.",
+          "canonical": "https://blog.pluse.name.ng/authors/ifeanyi-okoye.html"
+        }
+      }
+    ]
+  }
+}

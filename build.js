@@ -163,93 +163,42 @@ if (authorData) {
 }
 
 /* =========================================================
-   STRICT INCREMENTAL TRACKING
+   FEED & SITEMAP GENERATION
 ========================================================= */
-const manifestPath = "./data/built-manifest.json";
-const feedStorePath = "./data/feed-history.json";
-const domain = "https://blog.pluse.name.ng";
-
-// 1. Load the "Memory" (Manifest and History)
-if (!fs.existsSync("./data")) fs.mkdirSync("./data");
-
-let builtManifest = fs.existsSync(manifestPath) 
-    ? JSON.parse(fs.readFileSync(manifestPath, "utf-8")) 
-    : [];
-
-let feedHistory = fs.existsSync(feedStorePath)
-    ? JSON.parse(fs.readFileSync(feedStorePath, "utf-8"))
-    : [];
-
-/* =========================================================
-   THE DELTA ENGINE: ONLY NEW ADDITIONS
-========================================================= */
-// Compare source articles against the manifest to find ONLY what's missing
-const newArticles = articles.filter(article => !builtManifest.includes(article.slug));
-
-if (newArticles.length > 0) {
-    console.log(`🚀 Processing ${newArticles.length} new additions...`);
-
-    newArticles.forEach(article => {
-        // --- 1. Build the HTML Page (Only for the new addition) ---
-        const articleUrl = `${domain}/article/${article.slug}`;
-        const html = articleTemplate
-            .replace(/__TITLE__/g, article.title)
-            .replace(/__CANONICAL_URL__/g, articleUrl);
-            // ... (rest of your template replacements)
-
-        fs.writeFileSync(path.join(articleOut, `${article.slug}.html`), html);
-
-        // --- 2. Format for Feed History ---
-        const feedEntry = {
-            slug: article.slug,
-            title: article.title,
-            category: article.category || "News",
-            date: new Date(article.datePublished).toUTCString(),
-            description: article.description || article.title,
-            url: articleUrl
-        };
-
-        // Add to the front of the history
-        feedHistory.unshift(feedEntry);
-        
-        // Add slug to the manifest
-        builtManifest.push(article.slug);
-    });
-
-    // --- 3. Save Updated Tracking Files ---
-    fs.writeFileSync(manifestPath, JSON.stringify(builtManifest, null, 2));
-    fs.writeFileSync(feedStorePath, JSON.stringify(feedHistory, null, 2));
-
-    console.log("✅ Tracking files updated.");
-} else {
-    console.log("ℹ️ No new additions found in articles.json. Skipping page generation.");
-}
-
-/* =========================================================
-   GENERATE FEED.XML (Always reflects current state)
-========================================================= */
-const rssItems = feedHistory.slice(0, 20).map(item => `
-    <item>
-      <title><![CDATA[${item.title}]]></title>
-      <link>${item.url}</link>
-      <guid isPermaLink="false">${item.slug}</guid>
-      <category><![CDATA[${item.category}]]></category>
-      <pubDate>${item.date}</pubDate>
-      <description><![CDATA[${item.description}]]></description>
-      <media:content url="image.png" medium="image" />
-    </item>`).join("");
+const rssItems = ranked.map(article => `
+<item>
+  <title><![CDATA[${article.title}]]></title>
+  <link>${config.baseUrl}/articles/${article.slug}.html</link>
+  <guid>${config.baseUrl}/articles/${article.slug}.html</guid>
+  <pubDate>${new Date(article.datePublished).toUTCString()}</pubDate>
+  <description><![CDATA[${article.description || article.title}]]></description>
+</item>`).join("");
 
 const rssFeed = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+<rss version="2.0">
 <channel>
-  <title>${config.siteName}</title>
-  <link>${domain}</link>
-  <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-  ${rssItems}
+<title>${config.siteName}</title>
+<link>${config.baseUrl}</link>
+<description>Latest news from ${config.siteName}</description>
+${rssItems}
 </channel>
 </rss>`;
 
 fs.writeFileSync(path.join(distDir, "feed.xml"), rssFeed);
+
+const sitemapUrls = ranked.map(article => `
+<url>
+  <loc>${config.baseUrl}/articles/${article.slug}.html</loc>
+  <lastmod>${new Date(article.datePublished).toISOString()}</lastmod>
+</url>`).join("");
+
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url><loc>${config.baseUrl}</loc></url>
+${sitemapUrls}
+</urlset>`;
+
+fs.writeFileSync(path.join(distDir, "sitemap.xml"), sitemap);
 
 /* =========================================================
    COPY ASSETS & ROBOTS

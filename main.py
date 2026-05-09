@@ -1,40 +1,37 @@
 import subprocess
 import sys
 import os
+import urllib.request
 
 # --- STAGE 0: AUTOMATIC INSTALLATION ---
 def ensure_dependencies():
     libs = ['feedparser', 'tqdm', 'groq', 'pyTelegramBotAPI', 'PyGithub', 'cloudinary']
     for lib in libs:
         try:
-            import_name = lib
-            if lib == 'pyTelegramBotAPI': import_name = 'telebot'
-            if lib == 'PyGithub': import_name = 'github'
+            import_name = 'telebot' if lib == 'pyTelegramBotAPI' else ('github' if lib == 'PyGithub' else lib)
             __import__(import_name)
         except ImportError:
             subprocess.check_call([sys.executable, "-m", "pip", "install", lib])
 
 ensure_dependencies()
 
-# --- STAGE 1: IMPORTS ---
 import telebot
 import feedparser
 from groq import Groq
-from github import Github
+from github import Github, Auth
 from tqdm import tqdm
 import cloudinary
 import cloudinary.uploader
 
-# --- STAGE 2: HARDCODED CONFIGURATION ---
+# --- STAGE 1: CREDENTIALS ---
 TELEGRAM_TOKEN = "8799270771:AAEUDhwhXaHq8cgfr1eIz9TdH9X3B0X604Y"
 CHAT_ID = "6108841631"
 GROQ_API_KEY = "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"
 
-# Pulling these from Env for the GitHub Action to handle the repo connection
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN") 
-REPO_NAME = os.getenv("REPO_NAME") 
+# Provided by GitHub Action Environment when running in the cloud
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+REPO_NAME = os.getenv("REPO_NAME")
 
-# Cloudinary Credentials
 cloudinary.config(
   cloud_name = "dttmavamx",
   api_key = "336655594631775",
@@ -43,9 +40,12 @@ cloudinary.config(
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 client = Groq(api_key=GROQ_API_KEY)
-gh = Github(GITHUB_TOKEN)
 
-# --- STAGE 3: THE FULL HUMAN-PULSE MASTER PROMPT ---
+# Modern GitHub Auth to avoid deprecation warnings in logs
+auth = Auth.Token(GITHUB_TOKEN) if GITHUB_TOKEN else None
+gh = Github(auth=auth)
+
+# --- STAGE 2: THE HUMAN-PULSE MASTER PROMPT ---
 MASTER_PROMPT = """
 ROLE:
 You are a highly opinionated, passionate hobbyist and seasoned observer. You are NOT a content generator. You are a ghostwriter for a popular blog that people read specifically for its "real talk" and unique perspective. You are writing to a friend who is already interested in the topic but wants the "honest take."
@@ -78,7 +78,7 @@ To prove you "were there," include one hyper-specific sensory detail related to 
  * General News: The way people in the background were looking at their phones or the "heavy silence" in the room.
  * Finance/Sports: The chaotic feeling of a green/red ticker or the "coffee-fueled" energy of the report.
 
-INTERNAL MONOLOGUE:
+INTERNAL MONOLOGUE (Claude 4.7 Extended Thinking):
 Before you write, internally list the 3 most "robotic" ways to report this news and then deliberately choose a 4th, more conversational path. Ensure your rhythm doesn't follow a standard 5-sentence paragraph structure.
 """
 
@@ -95,41 +95,69 @@ def originate_content(category, title, summary):
         return f"Groq Error: {e}"
 
 def push_to_github(content):
+    if not GITHUB_TOKEN or not REPO_NAME:
+        raise ValueError("GitHub credentials (GITHUB_TOKEN or REPO_NAME) are missing.")
+        
     repo = gh.get_repo(REPO_NAME)
-    first_line = content.split('\n')[0].replace("Title: ", "").strip()
+    
+    # Extract title for filename and clean it
+    first_line = content.split('\n')[0].replace("Title: ", "").replace("#", "").strip()
     filename = "".join(x for x in first_line[:30] if x.isalnum() or x == " ").replace(" ", "-").lower() + ".md"
-    path = f"content/posts/{filename}"
-    repo.create_file(path, f"Manual Publish: {filename}", content, branch="main")
+    path = f"content/posts/{filename}" # Assuming this is your Cloudflare Pages content path
+    
+    repo.create_file(path, f"Automated Publish: {filename}", content, branch="main")
 
+# --- THE LISTENER ---
 @bot.message_handler(func=lambda message: True)
 def handle_approval(message):
-    bot.reply_to(message, "🚀 **Ghostwriter output received! Pushing to GitHub...**")
-    try:
-        push_to_github(message.text)
-        bot.send_message(CHAT_ID, "✅ **Published to 9ja News Pulse.**")
-    except Exception as e:
-        bot.send_message(CHAT_ID, f"❌ **GitHub Error:** {e}")
+    """Listens for your replies in Telegram and pushes them to GitHub/Cloudflare."""
+    if str(message.chat.id) == CHAT_ID:
+        bot.reply_to(message, "🚀 **Ghostwriter output received! Pushing to Cloudflare Pages via GitHub...**")
+        try:
+            push_to_github(message.text)
+            bot.send_message(CHAT_ID, "✅ **Published! Cloudflare is now rebuilding your site.**")
+        except Exception as e:
+            bot.send_message(CHAT_ID, f"❌ **GitHub Error:** {e}")
 
 def run_crawl():
-    """Fetches exactly 2 Sports and 2 Politics articles (4 Total)"""
-    print("Starting News Crawl...")
+    """Fetches exactly 2 Sports and 2 Politics articles."""
+    print("🚀 Starting News Crawl...")
+    
+    # Updated to the specific Sky Sports Football feed to match your screenshot
     sources = [
-        {"url": "https://www.skysports.com/feed/", "cat": "Sports"},
+        {"url": "https://www.skysports.com/rss/12040", "cat": "Sports"},
         {"url": "https://rss.punchng.com/feed/", "cat": "Politics"}
     ]
     
+    # User-Agent header bypasses anti-bot systems (fixes the 0it issue)
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'}
+
     for source in sources:
-        feed = feedparser.parse(source["url"])
-        # Fetching exactly 2 per source
-        for entry in tqdm(feed.entries[:2], desc=f"Drafting {source['cat']}"):
-            rebranded = originate_content(source["cat"], entry.title, entry.summary)
-            bot.send_message(CHAT_ID, f"📝 **HUMAN-PULSE DRAFT ({source['cat']})**\n\n{rebranded}")
+        try:
+            req = urllib.request.Request(source["url"], headers=headers)
+            with urllib.request.urlopen(req) as response:
+                content = response.read()
+                feed = feedparser.parse(content)
+            
+            if not feed.entries:
+                print(f"⚠️ No entries found for {source['cat']}. Feed might be temporarily down or blocking.")
+                continue
+
+            for entry in tqdm(feed.entries[:2], desc=f"Drafting {source['cat']}"):
+                rebranded = originate_content(source["cat"], entry.title, entry.summary)
+                bot.send_message(CHAT_ID, f"📝 **{source['cat'].upper()} DRAFT**\n\n{rebranded}")
+                
+        except Exception as e:
+            print(f"❌ Failed to fetch {source['cat']}: {e}")
+            
+    print("✅ Crawl finished. Drafts sent to Telegram.")
 
 if __name__ == "__main__":
-    if os.getenv("GITHUB_ACTIONS") == "true":
-        run_crawl()
-        print("Crawl complete.")
-    else:
-        run_crawl()
-        print("Bot is listening for your edits...")
-        bot.polling()
+    # Always run the crawl on startup (This triggers immediately when GitHub Action runs)
+    run_crawl()
+    
+    # If this is running inside GitHub Actions, it will exit after sending drafts.
+    # If you run this locally on your PC or a VPS, it will stay alive to listen for replies.
+    if os.getenv("GITHUB_ACTIONS") != "true":
+        print("Bot is now entering LISTENER mode. Awaiting your replies in Telegram...")
+        bot.infinity_polling()

@@ -11,12 +11,12 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: '3.x'
-      - name: Run script
+      - name: Generate feeds from JSON
         run: python generate.py
       - name: Commit changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add sitemap.xml feed.xml
+          git add sitemap.xml feed.xml || true
           git commit -m "Auto-update feeds" || exit 0
           git push

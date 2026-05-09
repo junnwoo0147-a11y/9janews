@@ -86,7 +86,7 @@ def originate_content(category, title, summary):
     article_data = f"TITLE: {title} | SUMMARY: {summary}"
     try:
         completion = client.chat.completions.create(
-            model="llama3-70b-8192", 
+            model="openai/gpt-oss-120b", 
             messages=[{"role": "system", "content": MASTER_PROMPT.format(category=category, article_data=article_data)}],
             temperature=0.85
         )

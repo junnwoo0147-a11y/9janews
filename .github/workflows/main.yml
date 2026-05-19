@@ -5,15 +5,18 @@ on:
     branches:
       - main
   schedule:
-    # 8am, 1pm, 4pm, 7pm, 11pm (Matches your 5-times-a-day requirement)
     - cron: '0 8,13,16,19,23 * * *'
   workflow_dispatch:
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
+    # Force Node 24 to stop the warning
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      
     permissions:
-      contents: write # Essential for pushing back to your repo
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -32,7 +35,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_NAME: ${{ github.repository }}
-        run: python main.py
+        run: |
+          # Capture the output and print it even on failure
+          python main.py || (echo "Python script failed!" && exit 1)
 
       - name: Commit and push changes
         run: |

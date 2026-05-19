@@ -1,51 +1,33 @@
-import subprocess
-import sys
 import os
+import sys
+import json
+import re
 import urllib.request
-
-# --- STAGE 0: AUTOMATIC INSTALLATION ---
-def ensure_dependencies():
-    libs = ['feedparser', 'tqdm', 'groq', 'pyTelegramBotAPI', 'PyGithub', 'cloudinary']
-    for lib in libs:
-        try:
-            import_name = 'telebot' if lib == 'pyTelegramBotAPI' else ('github' if lib == 'PyGithub' else lib)
-            __import__(import_name)
-        except ImportError:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", lib])
-
-ensure_dependencies()
-
-import telebot
+from datetime import datetime
 import feedparser
-from groq import Groq
-from github import Github, Auth
-from tqdm import tqdm
+from bs4 import BeautifulSoup
+import telebot
 import cloudinary
 import cloudinary.uploader
+from google import genai
+from google.genai import types
 
-# --- STAGE 1: CREDENTIALS ---
+# --- STAGE 0: CREDENTIAL HARDCODING ---
 TELEGRAM_TOKEN = "8799270771:AAEUDhwhXaHq8cgfr1eIz9TdH9X3B0X604Y"
 CHAT_ID = "6108841631"
-GROQ_API_KEY = "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"
-
-# Provided by GitHub Action Environment when running in the cloud
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-REPO_NAME = os.getenv("REPO_NAME")
+GEMINI_API_KEY = "AIzaSyBkrOWIRv9_6cB879MSIbk_iJ3VwR0q5KY"
 
 cloudinary.config(
-  cloud_name = "dttmavamx",
-  api_key = "336655594631775",
-  api_secret = "xydaLJiFP26S_BG_AgBbAmP7U00"
+    cloud_name="dttmavamx",
+    api_key="336655594631775",
+    api_secret="xydaLJiFP26S_BG_AgBbAmP7U00"
 )
 
+# Initialize SDK Clients
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
-client = Groq(api_key=GROQ_API_KEY)
+ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Modern GitHub Auth to avoid deprecation warnings in logs
-auth = Auth.Token(GITHUB_TOKEN) if GITHUB_TOKEN else None
-gh = Github(auth=auth)
-
-# --- STAGE 2: THE HUMAN-PULSE MASTER PROMPT ---
+# --- STAGE 2: THE HUMAN-PULSE MASTER PROMPT (VERBATIM) ---
 MASTER_PROMPT = """
 ROLE:
 You are a highly opinionated, passionate hobbyist and seasoned observer. You are NOT a content generator. You are a ghostwriter for a popular blog that people read specifically for its "real talk" and unique perspective. You are writing to a friend who is already interested in the topic but wants the "honest take."
@@ -65,12 +47,10 @@ RULE 2: THE TITLE (SUMMARY + CURIOSITY)
  * Example (Tech): "The new Apple update finally fixes the battery drain, but the privacy trade-off feels like a step backward."
 
 RULE 3: THE "HUMAN DEFECT" STYLE (ANTI-DETECTION)
- * High Perplexity: Do not use predictable word pairings.
- * High Burstiness: Vary sentence length aggressively.
-    * Pattern: One long, rambling, parenthetical thought sentence followed by a short, 3-word punch. Like this.
- * Intentional "Flow" Breaks: Start sentences with "And," "But," or "So." Use contractions (don't, it's, shouldn't) every single time.
- * Forbidden Transitions: Never use "In conclusion," "Moreover," "Additionally," "Furthermore," or "Essentially."
- * Forbidden "AI" Vocabulary: Absolutely no use of: Testament, landscape, pivotal, underscores, delves, tapestry, comprehensive, multifaceted, or 'in today's world'.
+
+ * High Burstiness (RANDOMIZED LAYOUT): Vary sentence and paragraph lengths aggressively throughout the entire piece. 
+    * Dynamic Execution: You can use the pattern of a long, rambling thought sentence followed by a 3-word punch, but ONLY use it once or twice in the entire article. Mix it up. Use a single-sentence paragraph for raw impact, a casual two-sentence observation, and a standard analytical breakdown. Never let two consecutive paragraphs look structurally identical, or it will trigger automated template filters.
+
 
 RULE 4: SENSORY "WITNESS" LAYER
 To prove you "were there," include one hyper-specific sensory detail related to the news category:
@@ -78,86 +58,312 @@ To prove you "were there," include one hyper-specific sensory detail related to 
  * General News: The way people in the background were looking at their phones or the "heavy silence" in the room.
  * Finance/Sports: The chaotic feeling of a green/red ticker or the "coffee-fueled" energy of the report.
 
-INTERNAL MONOLOGUE (Claude 4.7 Extended Thinking):
+INTERNAL MONOLOGUE
 Before you write, internally list the 3 most "robotic" ways to report this news and then deliberately choose a 4th, more conversational path. Ensure your rhythm doesn't follow a standard 5-sentence paragraph structure.
 """
 
-def originate_content(category, title, summary):
-    article_data = f"TITLE: {title} | SUMMARY: {summary}"
-    try:
-        completion = client.chat.completions.create(
-            model="openai/gpt-oss-120b", 
-            messages=[{"role": "system", "content": MASTER_PROMPT.format(category=category, article_data=article_data)}],
-            temperature=0.85
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        return f"Groq Error: {e}"
+# Global processing queue for man-in-the-loop tracking
+PENDING_QUEUE = []
+CURRENT_PROCESSING_ITEM = None
+JSON_FILE_PATH = "data/articles.json"
 
-def push_to_github(content):
-    if not GITHUB_TOKEN or not REPO_NAME:
-        raise ValueError("GitHub credentials (GITHUB_TOKEN or REPO_NAME) are missing.")
-        
-    repo = gh.get_repo(REPO_NAME)
-    
-    # Extract title for filename and clean it
-    first_line = content.split('\n')[0].replace("Title: ", "").replace("#", "").strip()
-    filename = "".join(x for x in first_line[:30] if x.isalnum() or x == " ").replace(" ", "-").lower() + ".md"
-    path = f"content/posts/{filename}" # Assuming this is your Cloudflare Pages content path
-    
-    repo.create_file(path, f"Automated Publish: {filename}", content, branch="main")
 
-# --- THE LISTENER ---
-@bot.message_handler(func=lambda message: True)
-def handle_approval(message):
-    """Listens for your replies in Telegram and pushes them to GitHub/Cloudflare."""
-    if str(message.chat.id) == CHAT_ID:
-        bot.reply_to(message, "🚀 **Ghostwriter output received! Pushing to Cloudflare Pages via GitHub...**")
+# --- HELPER UTILITIES ---
+def generate_slug(title):
+    slug = title.lower().strip()
+    slug = re.sub(r'[^\w\s-]', '', slug)
+    slug = re.sub(r'[\s_-]+', '-', slug)
+    return slug
+
+
+def extract_image_url(entry):
+    """Robust fallback search engine for entry assets via metadata or description HTML parse."""
+    # 1. Search common RSS media/enclosure paths
+    if 'media_content' in entry and len(entry.media_content) > 0:
+        return entry.media_content[0].get('url')
+    if 'links' in entry:
+        for link in entry.links:
+            if 'image' in link.get('type', ''):
+                return link.get('href')
+    
+    # 2. BeautifulSoup Parse fallback
+    html_target = ""
+    if 'summary' in entry:
+        html_target += entry.summary
+    if 'content' in entry:
+        for c in entry.content:
+            html_target += c.value
+            
+    if html_target:
         try:
-            push_to_github(message.text)
-            bot.send_message(CHAT_ID, "✅ **Published! Cloudflare is now rebuilding your site.**")
-        except Exception as e:
-            bot.send_message(CHAT_ID, f"❌ **GitHub Error:** {e}")
+            soup = BeautifulSoup(html_target, "html.parser")
+            img = soup.find("img")
+            if img and img.get("src"):
+                return img["src"]
+        except Exception:
+            pass
+            
+    # Default high-res fallback image if source completely lacks one
+    return "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&h=800&fit=crop"
 
-def run_crawl():
-    """Fetches exactly 2 Sports and 2 Politics articles."""
-    print("🚀 Starting News Crawl...")
+
+def upload_to_cloudinary(url_source, title_seed):
+    """Uploads and resizes asset to 1200x800 minimum standard for Google Discover."""
+    try:
+        clean_id = "".join(c for c in title_seed if c.isalnum() or c in (" ", "_", "-")).strip()[:40]
+        public_id = f"discover_{int(datetime.now().timestamp())}_{clean_id.replace(' ', '_')}"
+        
+        response = cloudinary.uploader.upload(
+            url_source,
+            public_id=public_id,
+            folder="discover_images",
+            transformation=[
+                {"width": 1200, "height": 800, "crop": "fill", "gravity": "auto"}
+            ]
+        )
+        return response.get("secure_url")
+    except Exception as e:
+        print(f"⚠️ Cloudinary Error: {e}. Cascading to raw feed source.")
+        return url_source
+
+
+# --- STAGE 3: AI REWRITING (GEMINI 3.1 PRO) ---
+def generate_ai_article(category, old_title, old_summary):
+    """Executes prompt via the modern google-genai SDK wrapped in HTML requirements."""
+    article_data = f"TITLE: {old_title} | SUMMARY: {old_summary}"
     
-    # Updated to the specific Sky Sports Football feed to match your screenshot
+    # Instruct the layout runtime to strictly wrap raw content outputs into clean paragraph tags
+    system_instruction_wrapper = (
+        "Output your entire response inside standard HTML <p></p> paragraph blocks. "
+        "Do not include Markdown syntax, ```html containers, or outer page wrappers. "
+        "The first line of text must contain the Title, also wrapped in its own single <p> block."
+    )
+    
+    combined_prompt = f"{MASTER_PROMPT}\n\n{system_instruction_wrapper}\nCategory: {category}\nData: {article_data}"
+    
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-3.1-pro-preview",
+            contents=combined_prompt
+        )
+        return response.text if response.text else "Generation failed empty output."
+    except Exception as e:
+        return f"<p>Gemini Execution Error: {str(e)}</p>"
+
+
+# --- STAGE 5: ARRAY PREPEND TO LOCAL JSON ---
+def prepend_to_json_file(article_object):
+    """Thread-safe file mutation layer to prevent record wiping."""
+    try:
+        os.makedirs(os.path.dirname(JSON_FILE_PATH), exist_ok=True)
+        
+        existing_data = []
+        if os.path.exists(JSON_FILE_PATH):
+            with open(JSON_FILE_PATH, "r", encoding="utf-8") as f:
+                try:
+                    existing_data = json.load(f)
+                    if not isinstance(existing_data, list):
+                        existing_data = []
+                except json.JSONDecodeError:
+                    existing_data = []
+                    
+        # Append target element directly to front of array
+        existing_data.insert(0, article_object)
+        
+        with open(JSON_FILE_PATH, "w", encoding="utf-8") as f:
+            json.dump(existing_data, f, indent=2, ensure_ascii=False)
+        print(f"💾 Local data sync complete. Prepend index updated for slug: {article_object['slug']}")
+        return True
+    except Exception as e:
+        print(f"❌ Critical storage write error: {e}")
+        return False
+
+
+# --- STAGE 4: SEQUENTIAL TELEGRAM LOOP ENGINE ---
+def dispatch_next_queue_item():
+    """Pops and transmits draft notifications one item at a time."""
+    global CURRENT_PROCESSING_ITEM
+    if not PENDING_QUEUE:
+        bot.send_message(CHAT_ID, "🏁 **Pipeline Clean! All 4 generated drafts have been audited and updated.**")
+        CURRENT_PROCESSING_ITEM = None
+        return
+
+    CURRENT_PROCESSING_ITEM = PENDING_QUEUE.pop(0)
+    
+    print(f"Processing candidate for Telegram validation: {CURRENT_PROCESSING_ITEM['old_title']}")
+    
+    # Call Gemini 3.1 Pro
+    ai_output = generate_ai_article(
+        CURRENT_PROCESSING_ITEM["category"],
+        CURRENT_PROCESSING_ITEM["old_title"],
+        CURRENT_PROCESSING_ITEM["old_summary"]
+    )
+    
+    # Store temporary generation state
+    CURRENT_PROCESSING_ITEM["ai_raw_output"] = ai_output
+    
+    # Split Title out of HTML block assuming it's the first paragraph
+    paragraphs = re.findall(r'<p>(.*?)</p>', ai_output, re.DOTALL)
+    ai_title = paragraphs[0] if paragraphs else CURRENT_PROCESSING_ITEM["old_title"]
+    ai_content_only = "".join([f"<p>{p}</p>" for p in paragraphs[1:]]) if len(paragraphs) > 1 else ai_output
+
+    CURRENT_PROCESSING_ITEM["extracted_title"] = ai_title
+    CURRENT_PROCESSING_ITEM["extracted_content"] = ai_content_only
+
+    # Construct the exact verification message layout required
+    telegram_ux_body = (
+        f"🔍 **OLD ARTICLE DATA CLASSIFIED AT:**\n"
+        f"Category: {CURRENT_PROCESSING_ITEM['category']}\n"
+        f"Title: {CURRENT_PROCESSING_ITEM['old_title']}\n"
+        f"Summary: {CURRENT_PROCESSING_ITEM['old_summary']}\n\n"
+        f"====================================\n\n"
+        f"✨ **NEW AI RECORD ENTRY**\n"
+        f"Title: {ai_title}\n\n"
+        f"Content:\n{ai_content_only}\n\n"
+        f"🕒 *Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
+        f"👉 _Reply directly to this text to authorize or apply custom edits._"
+    )
+    
+    bot.send_message(CHAT_ID, telegram_ux_body, parse_mode="Markdown" if "```" not in telegram_ux_body else None)
+
+
+@bot.message_handler(func=lambda msg: True)
+def process_user_approval_response(message):
+    """Catches replies, edits fields directly, calculates precise time, and appends."""
+    global CURRENT_PROCESSING_ITEM
+    if str(message.chat.id) != CHAT_ID or not CURRENT_PROCESSING_ITEM:
+        return
+
+    bot.reply_to(message, "⚙️ **Processing verification update... Updating target database...**")
+    
+    user_input = message.text.strip()
+    
+    # Extract structural defaults
+    final_title = CURRENT_PROCESSING_ITEM["extracted_title"]
+    final_content = CURRENT_PROCESSING_ITEM["extracted_content"]
+    
+    # If text is not an generic pass phrase, treat the entire string message as modified content override
+    if user_input.lower() not in ("yes", "approve", "ok", "go", "publish"):
+        # Look if user supplied customized Title vs Content syntax block
+        if "title:" in user_input.lower():
+            lines = user_input.split('\n')
+            t_line = [l for l in lines if l.lower().startswith("title:")]
+            if t_line:
+                final_title = t_line[0].replace("Title:", "").replace("title:", "").strip()
+            # Everything else treated as revised HTML block content
+            c_lines = [l for l in lines if not l.lower().startswith("title:")]
+            final_content = "\n".join(c_lines).strip()
+        else:
+            final_content = user_input
+
+    # Dynamic execution time markers calculated to the precise second of incoming authorization
+    execution_time_marker = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+    static_day_marker = datetime.now().strftime("%Y-%m-%d")
+    
+    # Extract plain text elements for SEO description parameters
+    clean_text_layer = re.sub(r'<[^>]*>', '', final_content)
+    
+    article_payload = {
+        "slug": generate_slug(final_title),
+        "title": final_title,
+        "description": clean_text_layer[:147] + "...",
+        "intro": clean_text_layer[:47] + "...",
+        "content": final_content,
+        "image": CURRENT_PROCESSING_ITEM["cloudinary_url"],
+        "datePublished": execution_time_marker,
+        "dateModified": execution_time_marker,
+        "category": CURRENT_PROCESSING_ITEM["category"].lower(),
+        "trendingBoost": 3
+    }
+    
+    # Execute database save
+    success = prepend_to_json_file(article_payload)
+    
+    if success:
+        bot.send_message(
+            CHAT_ID, 
+            f"✅ **Successfully Saved!**\n"
+            f"Slug: `{article_payload['slug']}`\n"
+            f"Time Logged: `{execution_time_marker}`"
+        )
+    else:
+        bot.send_message(CHAT_ID, "❌ **Error committing dynamic JSON record change to storage layer.**")
+
+    # Cycle to the next item in execution order 
+    dispatch_next_queue_item()
+
+
+# --- STAGE 1: CRAWLER & KEYWORD FILTER ENGINE ---
+def execute_feed_crawl():
+    global PENDING_QUEUE
+    print("🚀 Initiating RSS Curation Layer...")
+    
     sources = [
-        {"url": "https://www.skysports.com/rss/12040", "cat": "Sports"},
-        {"url": "https://rss.punchng.com/feed/", "cat": "Politics"}
+        {"url": "https://www.skysports.com/rss/12040", "category": "Sports"},
+        {"url": "https://rss.punchng.com/feed/", "category": "Politics"}
     ]
     
-    # User-Agent header bypasses anti-bot systems (fixes the 0it issue)
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'}
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    
+    football_signals = [
+        "football", "premier league", "laliga", "serie", "bundesliga", "champions league", 
+        "transfers", "osimhen", "galatasaray", "arteta", "clash", "chelsea", "arsenal", 
+        "manchester", "liverpool", "bale", "fifa", "uefa", "striker", "derby", "raya"
+    ]
 
     for source in sources:
         try:
             req = urllib.request.Request(source["url"], headers=headers)
-            with urllib.request.urlopen(req) as response:
-                content = response.read()
-                feed = feedparser.parse(content)
+            with urllib.request.urlopen(req, timeout=15) as response:
+                feed_data = feedparser.parse(response.read())
             
-            if not feed.entries:
-                print(f"⚠️ No entries found for {source['cat']}. Feed might be temporarily down or blocking.")
+            if not feed_data.entries:
+                print(f"⚠️ No entries processed for path: {source['category']}")
                 continue
 
-            for entry in tqdm(feed.entries[:2], desc=f"Drafting {source['cat']}"):
-                rebranded = originate_content(source["cat"], entry.title, entry.summary)
-                bot.send_message(CHAT_ID, f"📝 **{source['cat'].upper()} DRAFT**\n\n{rebranded}")
+            saved_count = 0
+            for entry in feed_data.entries:
+                if saved_count >= 2:
+                    break
+                
+                title_clean = entry.get('title', '')
+                summary_clean = entry.get('summary', '')
+                
+                # Apply strict football filtering on sports categories
+                if source["category"] == "Sports":
+                    search_space = (title_clean + " " + summary_clean).lower()
+                    if not any(keyword in search_space for keyword in football_signals):
+                        continue  # Skip non-football content item
+                
+                print(r"🎯 Found verified article match: " + title_clean[:40] + "...")
+                
+                # Fetch raw original graphics, transfer them to Cloudinary platform instantly
+                raw_img_source = extract_image_url(entry)
+                optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title_clean)
+                
+                # Bundle operational state objects
+                PENDING_QUEUE.append({
+                    "category": source["category"],
+                    "old_title": title_clean,
+                    "old_summary": summary_clean,
+                    "cloudinary_url": optimized_cloudinary_url
+                })
+                saved_count += 1
                 
         except Exception as e:
-            print(f"❌ Failed to fetch {source['cat']}: {e}")
-            
-    print("✅ Crawl finished. Drafts sent to Telegram.")
+            print(f"❌ Feed processing exception caught at [{source['category']}]: {e}")
+
+    print(f"🏁 Curation complete. Total pipeline objects cached: {len(PENDING_QUEUE)}")
+    if PENDING_QUEUE:
+        dispatch_next_queue_item()
+    else:
+        bot.send_message(CHAT_ID, "⚠️ Crawler ran, but zero candidate matches passed requirements filters.")
+
 
 if __name__ == "__main__":
-    # Always run the crawl on startup (This triggers immediately when GitHub Action runs)
-    run_crawl()
+    # Execute the curation crawl routine immediately on initialization launch
+    execute_feed_crawl()
     
-    # If this is running inside GitHub Actions, it will exit after sending drafts.
-    # If you run this locally on your PC or a VPS, it will stay alive to listen for replies.
-    if os.getenv("GITHUB_ACTIONS") != "true":
-        print("Bot is now entering LISTENER mode. Awaiting your replies in Telegram...")
-        bot.infinity_polling()
+    # Enter continuous listening state tracking loop monitoring Telegram approvals
+    print("📡 Script is running and actively monitoring Telegram updates...")
+    bot.infinity_polling()

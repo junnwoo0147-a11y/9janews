@@ -151,27 +151,37 @@ def generate_ai_article(category, old_title, old_summary):
 
 def prepend_to_json_file(article_object):
     try:
+        # Ensure the data directory exists
         os.makedirs(os.path.dirname(JSON_FILE_PATH), exist_ok=True)
         
-        existing_data = []
+        # Load existing content
         if os.path.exists(JSON_FILE_PATH):
             with open(JSON_FILE_PATH, "r", encoding="utf-8") as f:
                 try:
                     existing_data = json.load(f)
-                    if not isinstance(existing_data, list):
-                        existing_data = []
                 except json.JSONDecodeError:
                     existing_data = []
+        else:
+            existing_data = []
+            
+        # Ensure it is a list
+        if not isinstance(existing_data, list):
+            # If your file was accidentally not a list, this prevents wiping it
+            print("❌ Error: Existing JSON structure is not a list. Aborting.")
+            return False
                     
+        # Add new article to the top (index 0)
         existing_data.insert(0, article_object)
         
+        # Save back to file
         with open(JSON_FILE_PATH, "w", encoding="utf-8") as f:
             json.dump(existing_data, f, indent=2, ensure_ascii=False)
-        print(f"💾 Local data sync complete. Prepend index updated for slug: {article_object['slug']}")
+            
+        print(f"💾 Successfully prepended article: {article_object['slug']}")
         return True
     except Exception as e:
         print(f"❌ Critical storage write error: {e}")
-        return False
+        return False 
 
 
 def dispatch_next_queue_item():
@@ -213,7 +223,8 @@ def dispatch_next_queue_item():
         f"👉 _Reply directly to this text to authorize or apply custom edits._"
     )
     
-    bot.send_message(CHAT_ID, telegram_ux_body, parse_mode="Markdown" if "```" not in telegram_ux_body else None)
+    bot.send_message(CHAT_ID, telegram_ux_body, parse_mode="Markdown" if "
+```" not in telegram_ux_body else None)
 
 
 # NEW: Manual Breaking News Injector
@@ -368,12 +379,16 @@ def execute_feed_crawl():
 
 
 if __name__ == "__main__":
-    print(f"🕒 Execution started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    scheduler = BackgroundScheduler()
     
-    # 1. Run the crawler once
+    target_hours = [8, 13, 16, 19, 23]
+    for hr in target_hours:
+        scheduler.add_job(execute_feed_crawl, 'cron', hour=hr, minute=0, second=0)
+        
+    scheduler.start()
+    print("⏰ Background Scheduler Activated successfully.")
+    print(f"Target distribution hours set to: {target_hours} daily.")
+    
     execute_feed_crawl()
     
-    # 2. IMPORTANT: If you want to keep the bot alive while the action runs
-    # to process your Telegram replies immediately, use a short loop:
-    print("Bot is listening for your approval... (will timeout in 5 minutes)")
-    bot.polling(timeout=300)
+    bot.infinity_polling()

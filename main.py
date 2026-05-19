@@ -210,22 +210,18 @@ def dispatch_next_queue_item():
     CURRENT_PROCESSING_ITEM["extracted_title"] = ai_title
     CURRENT_PROCESSING_ITEM["extracted_content"] = ai_content_only
 
-    # FIXED: String combined using multiple lines correctly
     telegram_ux_body = (
-        "🔍 **OLD ARTICLE DATA CLASSIFIED AT:**\n"
+        f"🔍 **OLD ARTICLE DATA CLASSIFIED AT:**\n"
         f"Category: {CURRENT_PROCESSING_ITEM['category']}\n"
         f"Title: {CURRENT_PROCESSING_ITEM['old_title']}\n"
         f"Summary: {CURRENT_PROCESSING_ITEM['old_summary']}\n\n"
-        "====================================\n\n"
-        "✨ **NEW AI RECORD ENTRY**\n"
+        f"====================================\n\n"
+        f"✨ **NEW AI RECORD ENTRY**\n"
         f"Title: {ai_title}\n\n"
         f"Content:\n{ai_content_only}\n\n"
         f"🕒 *Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
-        "👉 _Reply directly to this text to authorize or apply custom edits._"
+        f"👉 _Reply directly to this text to authorize or apply custom edits._"
     )
-    
-    # Use standard string for parse_mode check to avoid the error
-    bot.send_message(CHAT_ID, telegram_ux_body, parse_mode="Markdown")
     
     bot.send_message(CHAT_ID, telegram_ux_body, parse_mode="Markdown" if "
 ```" not in telegram_ux_body else None)

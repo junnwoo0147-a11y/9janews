@@ -3,18 +3,17 @@ name: News Pulse Wake & Run
 on:
   push:
     branches:
-      - main        # Runs immediately when you push code to the main branch
+      - main
   schedule:
-    - cron: '0 */8 * * *' # Runs automatically every 8 hours
-  workflow_dispatch:      # Adds a "Run workflow" button in the Actions tab for manual testing
+    # 8am, 1pm, 4pm, 7pm, 11pm (Matches your 5-times-a-day requirement)
+    - cron: '0 8,13,16,19,23 * * *'
+  workflow_dispatch:
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
-    
-    # This gives the Action permission to write files back to your repo (Cloudflare Pages)
     permissions:
-      contents: write
+      contents: write # Essential for pushing back to your repo
 
     steps:
       - name: Checkout repository
@@ -27,12 +26,18 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install feedparser tqdm groq pyTelegramBotAPI PyGithub cloudinary
+          pip install feedparser requests beautifulsoup4 google-genai pyTelegramBotAPI PyGithub cloudinary apscheduler
 
       - name: Run News Crawl
         env:
-          # Use the built-in GitHub Token (no manual setup required if permissions are set)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_NAME: ${{ github.repository }}
-          GITHUB_ACTIONS: "true"
         run: python main.py
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add data/articles.json
+          git commit -m "Auto-update: New curated article [skip ci]" || exit 0
+          git push

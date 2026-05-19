@@ -368,16 +368,12 @@ def execute_feed_crawl():
 
 
 if __name__ == "__main__":
-    scheduler = BackgroundScheduler()
+    print(f"🕒 Execution started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    target_hours = [8, 13, 16, 19, 23]
-    for hr in target_hours:
-        scheduler.add_job(execute_feed_crawl, 'cron', hour=hr, minute=0, second=0)
-        
-    scheduler.start()
-    print("⏰ Background Scheduler Activated successfully.")
-    print(f"Target distribution hours set to: {target_hours} daily.")
-    
+    # 1. Run the crawler once
     execute_feed_crawl()
     
-    bot.infinity_polling()
+    # 2. IMPORTANT: If you want to keep the bot alive while the action runs
+    # to process your Telegram replies immediately, use a short loop:
+    print("Bot is listening for your approval... (will timeout in 5 minutes)")
+    bot.polling(timeout=300)

@@ -4,6 +4,8 @@ import json
 import re
 import urllib.request
 from datetime import datetime
+import threading
+import time
 import feedparser
 from bs4 import BeautifulSoup
 import telebot
@@ -11,6 +13,7 @@ import cloudinary
 import cloudinary.uploader
 from google import genai
 from google.genai import types
+from apscheduler.schedulers.background import BackgroundScheduler
 
 # --- STAGE 0: CREDENTIAL HARDCODING ---
 TELEGRAM_TOKEN = "8799270771:AAEUDhwhXaHq8cgfr1eIz9TdH9X3B0X604Y"
@@ -51,7 +54,6 @@ RULE 3: THE "HUMAN DEFECT" STYLE (ANTI-DETECTION)
  * High Burstiness (RANDOMIZED LAYOUT): Vary sentence and paragraph lengths aggressively throughout the entire piece. 
     * Dynamic Execution: You can use the pattern of a long, rambling thought sentence followed by a 3-word punch, but ONLY use it once or twice in the entire article. Mix it up. Use a single-sentence paragraph for raw impact, a casual two-sentence observation, and a standard analytical breakdown. Never let two consecutive paragraphs look structurally identical, or it will trigger automated template filters.
 
-
 RULE 4: SENSORY "WITNESS" LAYER
 To prove you "were there," include one hyper-specific sensory detail related to the news category:
  * Tech: The annoying fan noise of a laptop or the smudge on a screen.
@@ -66,9 +68,9 @@ Before you write, internally list the 3 most "robotic" ways to report this news 
 PENDING_QUEUE = []
 CURRENT_PROCESSING_ITEM = None
 JSON_FILE_PATH = "data/articles.json"
+queue_lock = threading.Lock()
 
 
-# --- HELPER UTILITIES ---
 def generate_slug(title):
     slug = title.lower().strip()
     slug = re.sub(r'[^\w\s-]', '', slug)
@@ -76,9 +78,8 @@ def generate_slug(title):
     return slug
 
 
-def extract_image_url(entry):
-    """Robust fallback search engine for entry assets via metadata or description HTML parse."""
-    # 1. Search common RSS media/enclosure paths
+# UPDATED: Dynamic category-based fallback image
+def extract_image_url(entry, category):
     if 'media_content' in entry and len(entry.media_content) > 0:
         return entry.media_content[0].get('url')
     if 'links' in entry:
@@ -86,7 +87,6 @@ def extract_image_url(entry):
             if 'image' in link.get('type', ''):
                 return link.get('href')
     
-    # 2. BeautifulSoup Parse fallback
     html_target = ""
     if 'summary' in entry:
         html_target += entry.summary
@@ -103,12 +103,13 @@ def extract_image_url(entry):
         except Exception:
             pass
             
-    # Default high-res fallback image if source completely lacks one
-    return "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&h=800&fit=crop"
+    if category.lower() == "sports":
+        return "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&h=800&fit=crop"
+    else:
+        return "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop"
 
 
 def upload_to_cloudinary(url_source, title_seed):
-    """Uploads and resizes asset to 1200x800 minimum standard for Google Discover."""
     try:
         clean_id = "".join(c for c in title_seed if c.isalnum() or c in (" ", "_", "-")).strip()[:40]
         public_id = f"discover_{int(datetime.now().timestamp())}_{clean_id.replace(' ', '_')}"
@@ -127,12 +128,9 @@ def upload_to_cloudinary(url_source, title_seed):
         return url_source
 
 
-# --- STAGE 3: AI REWRITING (GEMINI 3.1 PRO) ---
 def generate_ai_article(category, old_title, old_summary):
-    """Executes prompt via the modern google-genai SDK wrapped in HTML requirements."""
     article_data = f"TITLE: {old_title} | SUMMARY: {old_summary}"
     
-    # Instruct the layout runtime to strictly wrap raw content outputs into clean paragraph tags
     system_instruction_wrapper = (
         "Output your entire response inside standard HTML <p></p> paragraph blocks. "
         "Do not include Markdown syntax, ```html containers, or outer page wrappers. "
@@ -151,9 +149,7 @@ def generate_ai_article(category, old_title, old_summary):
         return f"<p>Gemini Execution Error: {str(e)}</p>"
 
 
-# --- STAGE 5: ARRAY PREPEND TO LOCAL JSON ---
 def prepend_to_json_file(article_object):
-    """Thread-safe file mutation layer to prevent record wiping."""
     try:
         os.makedirs(os.path.dirname(JSON_FILE_PATH), exist_ok=True)
         
@@ -167,7 +163,6 @@ def prepend_to_json_file(article_object):
                 except json.JSONDecodeError:
                     existing_data = []
                     
-        # Append target element directly to front of array
         existing_data.insert(0, article_object)
         
         with open(JSON_FILE_PATH, "w", encoding="utf-8") as f:
@@ -179,30 +174,25 @@ def prepend_to_json_file(article_object):
         return False
 
 
-# --- STAGE 4: SEQUENTIAL TELEGRAM LOOP ENGINE ---
 def dispatch_next_queue_item():
-    """Pops and transmits draft notifications one item at a time."""
     global CURRENT_PROCESSING_ITEM
-    if not PENDING_QUEUE:
-        bot.send_message(CHAT_ID, "🏁 **Pipeline Clean! All 4 generated drafts have been audited and updated.**")
-        CURRENT_PROCESSING_ITEM = None
-        return
+    with queue_lock:
+        if not PENDING_QUEUE:
+            CURRENT_PROCESSING_ITEM = None
+            return
 
-    CURRENT_PROCESSING_ITEM = PENDING_QUEUE.pop(0)
+        CURRENT_PROCESSING_ITEM = PENDING_QUEUE.pop(0)
     
     print(f"Processing candidate for Telegram validation: {CURRENT_PROCESSING_ITEM['old_title']}")
     
-    # Call Gemini 3.1 Pro
     ai_output = generate_ai_article(
         CURRENT_PROCESSING_ITEM["category"],
         CURRENT_PROCESSING_ITEM["old_title"],
         CURRENT_PROCESSING_ITEM["old_summary"]
     )
     
-    # Store temporary generation state
     CURRENT_PROCESSING_ITEM["ai_raw_output"] = ai_output
     
-    # Split Title out of HTML block assuming it's the first paragraph
     paragraphs = re.findall(r'<p>(.*?)</p>', ai_output, re.DOTALL)
     ai_title = paragraphs[0] if paragraphs else CURRENT_PROCESSING_ITEM["old_title"]
     ai_content_only = "".join([f"<p>{p}</p>" for p in paragraphs[1:]]) if len(paragraphs) > 1 else ai_output
@@ -210,7 +200,6 @@ def dispatch_next_queue_item():
     CURRENT_PROCESSING_ITEM["extracted_title"] = ai_title
     CURRENT_PROCESSING_ITEM["extracted_content"] = ai_content_only
 
-    # Construct the exact verification message layout required
     telegram_ux_body = (
         f"🔍 **OLD ARTICLE DATA CLASSIFIED AT:**\n"
         f"Category: {CURRENT_PROCESSING_ITEM['category']}\n"
@@ -227,9 +216,39 @@ def dispatch_next_queue_item():
     bot.send_message(CHAT_ID, telegram_ux_body, parse_mode="Markdown" if "```" not in telegram_ux_body else None)
 
 
-@bot.message_handler(func=lambda msg: True)
+# NEW: Manual Breaking News Injector
+@bot.message_handler(func=lambda msg: msg.text and msg.text.startswith("Category:") and str(msg.chat.id) == CHAT_ID)
+def handle_manual_injection(message):
+    bot.reply_to(message, "🚨 **Manual Breaking News Received! Injecting into pipeline...**")
+    text = message.text
+    
+    try:
+        # Simple parsing of the manual payload
+        category = re.search(r'Category:\s*(.+)', text, re.IGNORECASE).group(1).strip()
+        title = re.search(r'Title:\s*(.+)', text, re.IGNORECASE).group(1).strip()
+        summary = re.search(r'Summary:\s*(.+)', text, re.IGNORECASE | re.DOTALL).group(1).strip()
+        
+        # Get appropriate fallback image directly since there's no RSS feed
+        raw_img_source = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop" if category.lower() != "sports" else "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&h=800&fit=crop"
+        optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title)
+        
+        with queue_lock:
+            PENDING_QUEUE.append({
+                "category": category,
+                "old_title": title,
+                "old_summary": summary,
+                "cloudinary_url": optimized_cloudinary_url
+            })
+            
+        if CURRENT_PROCESSING_ITEM is None:
+            dispatch_next_queue_item()
+            
+    except AttributeError:
+        bot.send_message(CHAT_ID, "❌ **Error parsing manual injection.** Ensure it contains 'Category:', 'Title:', and 'Summary:' on separate lines.")
+
+
+@bot.message_handler(func=lambda msg: not (msg.text and msg.text.startswith("Category:")))
 def process_user_approval_response(message):
-    """Catches replies, edits fields directly, calculates precise time, and appends."""
     global CURRENT_PROCESSING_ITEM
     if str(message.chat.id) != CHAT_ID or not CURRENT_PROCESSING_ITEM:
         return
@@ -238,29 +257,22 @@ def process_user_approval_response(message):
     
     user_input = message.text.strip()
     
-    # Extract structural defaults
     final_title = CURRENT_PROCESSING_ITEM["extracted_title"]
     final_content = CURRENT_PROCESSING_ITEM["extracted_content"]
     
-    # If text is not an generic pass phrase, treat the entire string message as modified content override
     if user_input.lower() not in ("yes", "approve", "ok", "go", "publish"):
-        # Look if user supplied customized Title vs Content syntax block
         if "title:" in user_input.lower():
             lines = user_input.split('\n')
             t_line = [l for l in lines if l.lower().startswith("title:")]
             if t_line:
                 final_title = t_line[0].replace("Title:", "").replace("title:", "").strip()
-            # Everything else treated as revised HTML block content
             c_lines = [l for l in lines if not l.lower().startswith("title:")]
             final_content = "\n".join(c_lines).strip()
         else:
             final_content = user_input
 
-    # Dynamic execution time markers calculated to the precise second of incoming authorization
     execution_time_marker = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-    static_day_marker = datetime.now().strftime("%Y-%m-%d")
     
-    # Extract plain text elements for SEO description parameters
     clean_text_layer = re.sub(r'<[^>]*>', '', final_content)
     
     article_payload = {
@@ -276,7 +288,6 @@ def process_user_approval_response(message):
         "trendingBoost": 3
     }
     
-    # Execute database save
     success = prepend_to_json_file(article_payload)
     
     if success:
@@ -289,14 +300,13 @@ def process_user_approval_response(message):
     else:
         bot.send_message(CHAT_ID, "❌ **Error committing dynamic JSON record change to storage layer.**")
 
-    # Cycle to the next item in execution order 
     dispatch_next_queue_item()
 
 
-# --- STAGE 1: CRAWLER & KEYWORD FILTER ENGINE ---
+# --- STAGE 1: CRAWLER (MODIFIED FOR EXACTLY 1 EACH) ---
 def execute_feed_crawl():
     global PENDING_QUEUE
-    print("🚀 Initiating RSS Curation Layer...")
+    print(f"🕒 Scheduled Crawl Triggered at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     sources = [
         {"url": "https://www.skysports.com/rss/12040", "category": "Sports"},
@@ -311,6 +321,8 @@ def execute_feed_crawl():
         "manchester", "liverpool", "bale", "fifa", "uefa", "striker", "derby", "raya"
     ]
 
+    new_items = []
+
     for source in sources:
         try:
             req = urllib.request.Request(source["url"], headers=headers)
@@ -318,31 +330,26 @@ def execute_feed_crawl():
                 feed_data = feedparser.parse(response.read())
             
             if not feed_data.entries:
-                print(f"⚠️ No entries processed for path: {source['category']}")
                 continue
 
             saved_count = 0
             for entry in feed_data.entries:
-                if saved_count >= 2:
+                if saved_count >= 1:
                     break
                 
                 title_clean = entry.get('title', '')
                 summary_clean = entry.get('summary', '')
                 
-                # Apply strict football filtering on sports categories
                 if source["category"] == "Sports":
                     search_space = (title_clean + " " + summary_clean).lower()
                     if not any(keyword in search_space for keyword in football_signals):
-                        continue  # Skip non-football content item
+                        continue
                 
-                print(r"🎯 Found verified article match: " + title_clean[:40] + "...")
-                
-                # Fetch raw original graphics, transfer them to Cloudinary platform instantly
-                raw_img_source = extract_image_url(entry)
+                # UPDATED: Passing category to extract_image_url
+                raw_img_source = extract_image_url(entry, source["category"])
                 optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title_clean)
                 
-                # Bundle operational state objects
-                PENDING_QUEUE.append({
+                new_items.append({
                     "category": source["category"],
                     "old_title": title_clean,
                     "old_summary": summary_clean,
@@ -351,19 +358,26 @@ def execute_feed_crawl():
                 saved_count += 1
                 
         except Exception as e:
-            print(f"❌ Feed processing exception caught at [{source['category']}]: {e}")
+            print(f"❌ Feed processing exception: {e}")
 
-    print(f"🏁 Curation complete. Total pipeline objects cached: {len(PENDING_QUEUE)}")
-    if PENDING_QUEUE:
+    with queue_lock:
+        PENDING_QUEUE.extend(new_items)
+        
+    if CURRENT_PROCESSING_ITEM is None:
         dispatch_next_queue_item()
-    else:
-        bot.send_message(CHAT_ID, "⚠️ Crawler ran, but zero candidate matches passed requirements filters.")
 
 
 if __name__ == "__main__":
-    # Execute the curation crawl routine immediately on initialization launch
+    scheduler = BackgroundScheduler()
+    
+    target_hours = [8, 13, 16, 19, 23]
+    for hr in target_hours:
+        scheduler.add_job(execute_feed_crawl, 'cron', hour=hr, minute=0, second=0)
+        
+    scheduler.start()
+    print("⏰ Background Scheduler Activated successfully.")
+    print(f"Target distribution hours set to: {target_hours} daily.")
+    
     execute_feed_crawl()
     
-    # Enter continuous listening state tracking loop monitoring Telegram approvals
-    print("📡 Script is running and actively monitoring Telegram updates...")
     bot.infinity_polling()

@@ -12,6 +12,29 @@ import telebot
 import cloudinary
 import cloudinary.uploader
 import boto3
+import signal
+import atexit
+
+LOCK_FILE = "/tmp/9ja_news_bot.lock"
+
+def acquire_lock():
+    if os.path.exists(LOCK_FILE):
+        # Check if lock is stale (older than 5 minutes)
+        if time.time() - os.path.getmtime(LOCK_FILE) < 300:
+            print("❌ Another bot instance is running. Exiting...")
+            sys.exit(1)
+        os.remove(LOCK_FILE)
+    
+    # Create lock file
+    with open(LOCK_FILE, 'w') as f:
+        f.write(str(os.getpid()))
+
+def release_lock():
+    if os.path.exists(LOCK_FILE):
+        os.remove(LOCK_FILE)
+
+acquire_lock()
+atexit.register(release_lock)
 
 # --- STAGE 0: CREDENTIAL HARDCODING ---
 TELEGRAM_TOKEN = "8799270771:AAEUDhwhXaHq8cgfr1eIz9TdH9X3B0X604Y"
@@ -28,6 +51,16 @@ cloudinary.config(
 
 # Initialize Telegram SDK
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
+
+def signal_handler(sig, frame):
+    print("🛑 Shutting down bot gracefully...")
+    # Stop any polling loops
+    if bot:
+        bot.stop_polling()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 # --- STAGE 2: THE HUMAN-PULSE MASTER PROMPT (VERBATIM) ---
 MASTER_PROMPT = """
@@ -264,7 +297,7 @@ def handle_manual_injection(message):
         title = re.search(r'Title:\s*(.+)', text, re.IGNORECASE).group(1).strip()
         summary = re.search(r'Summary:\s*(.+)', text, re.IGNORECASE | re.DOTALL).group(1).strip()
         
-        raw_img_source = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop"
+        raw_img_source = "[https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop](https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop)"
         optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title)
         
         with queue_lock:
@@ -348,8 +381,8 @@ def execute_feed_crawl():
     
     # NEW RSS LINKS INJECTED HERE
     sources = [
-        {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
-        {"url": "https://rss.punchng.com/v1/category/latest_news", "category": "Politics"}
+        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
+        {"url": "[https://rss.punchng.com/v1/category/latest_news](https://rss.punchng.com/v1/category/latest_news)", "category": "Politics"}
     ]
     
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -418,4 +451,4 @@ if __name__ == "__main__":
     execute_feed_crawl()
     
     print("📥 Waiting for your reply in Telegram to authorize publishing...")
-    bot.infinity_polling(skip_pending=True, timeout=30)
+    bot.polling(skip_pending=True, timeout=10, long_polling_timeout=10)

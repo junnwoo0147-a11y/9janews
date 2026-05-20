@@ -34,7 +34,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install feedparser requests beautifulsoup4 google-genai pyTelegramBotAPI PyGithub cloudinary apscheduler
+          pip install feedparser requests beautifulsoup4 google-genai pyTelegramBotAPI PyGithub cloudinary apscheduler boto3
 
       - name: Run News Crawl
         env:

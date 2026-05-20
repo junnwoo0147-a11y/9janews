@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 # --- CONFIGURATION ---
 SITE_URL = "https://blog.pluse.name.ng"
@@ -27,7 +27,7 @@ def generate():
 
     # Sort by date (newest first)
     articles.sort(
-        key=lambda x: datetime.fromisoformat(x.get('datePublished', '2000-01-01')), 
+        key=lambda x: datetime.fromisoformat(x.get('datePublished', '2000-01-01')).replace(tzinfo=None), 
         reverse=True
     )
 
@@ -64,10 +64,10 @@ def generate():
                 url = f"{SITE_URL}/articles/{slug}"
                 # Convert ISO date to RFC 2822 format for RSS
                 try:
-                    dt = datetime.fromisoformat(date_published)
+                    dt = datetime.fromisoformat(date_published).replace(tzinfo=None)
                     date_rss = dt.strftime('%a, %d %b %Y %H:%M:%S +0000')
                 except:
-                    date_rss = datetime.now().strftime('%a, %d %b %Y %H:%M:%S +0000')
+                    date_rss = datetime.now(timezone.utc).replace(tzinfo=None).strftime('%a, %d %b %Y %H:%M:%S +0000')
                 
                 f.write(f'''  <item>
     <title>{title}</title>

@@ -395,17 +395,17 @@ def execute_feed_crawl():
         dispatch_next_queue_item()
 
 
-if __name__ == "__main__":
-    scheduler = BackgroundScheduler()
-    
-    target_hours = [8, 13, 16, 19, 23]
-    for hr in target_hours:
-        scheduler.add_job(execute_feed_crawl, 'cron', hour=hr, minute=0, second=0)
-        
-    scheduler.start()
-    print("⏰ Background Scheduler Activated successfully.")
-    print(f"Target distribution hours set to: {target_hours} daily.")
-    
-    execute_feed_crawl()
-    
-    bot.infinity_polling()
+    if success:
+        bot.send_message(
+            CHAT_ID, 
+            f"✅ **Successfully Saved!**\n"
+            f"Slug: `{article_payload['slug']}`\n"
+            f"Time Logged: `{execution_time_marker}`"
+        )
+    else:
+        bot.send_message(CHAT_ID, "❌ **Error committing dynamic JSON record change to storage layer.**")
+
+    # CHANGE THIS PART AT THE BOTTOM OF THE FUNCTION:
+    print("✅ Work complete. Shutting down script so GitHub can commit changes.")
+    bot.stop_polling()  # Stop listening
+    sys.exit(0)         # Force close the script with a success code

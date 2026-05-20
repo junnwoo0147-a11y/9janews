@@ -52,7 +52,7 @@ RULE 2: THE TITLE (SUMMARY + CURIOSITY)
 RULE 3: THE "HUMAN DEFECT" STYLE (ANTI-DETECTION)
 
  * High Burstiness (RANDOMIZED LAYOUT): Vary sentence and paragraph lengths aggressively throughout the entire piece. 
-     * Dynamic Execution: You can use the pattern of a long, rambling thought sentence followed by a 3-word punch, but ONLY use it once or twice in the entire article. Mix it up. Use a single-sente[...]
+     * Dynamic Execution: You can use the pattern of a long, rambling thought sentence followed by a 3-word punch, but ONLY use it once or twice in the entire article. Mix it up. Use a single-sent[...]
 
 RULE 4: SENSORY "WITNESS" LAYER
 To prove you "were there," include one hyper-specific sensory detail related to the news category:
@@ -210,20 +210,38 @@ def dispatch_next_queue_item():
     CURRENT_PROCESSING_ITEM["extracted_title"] = ai_title
     CURRENT_PROCESSING_ITEM["extracted_content"] = ai_content_only
 
-    telegram_ux_body = (
+    # FIXED: Split message into parts to avoid Telegram 4096 char limit
+    # Part 1: Original article data
+    part1 = (
         f"🔍 **OLD ARTICLE DATA CLASSIFIED AT:**\n"
         f"Category: {CURRENT_PROCESSING_ITEM['category']}\n"
         f"Title: {CURRENT_PROCESSING_ITEM['old_title']}\n"
         f"Summary: {CURRENT_PROCESSING_ITEM['old_summary']}\n\n"
         f"====================================\n\n"
         f"✨ **NEW AI RECORD ENTRY**\n"
-        f"Title: {ai_title}\n\n"
-        f"Content:\n{ai_content_only}\n\n"
+        f"Title: {ai_title}"
+    )
+    bot.send_message(CHAT_ID, part1, parse_mode="Markdown")
+    
+    # Part 2: AI content (split if necessary)
+    clean_content = re.sub(r'<[^>]*>', '', ai_content_only)
+    max_length = 4000
+    
+    if len(clean_content) > max_length:
+        # Split content into chunks
+        chunks = [clean_content[i:i+max_length] for i in range(0, len(clean_content), max_length)]
+        for idx, chunk in enumerate(chunks):
+            header = f"📄 **Content (Part {idx+1}/{len(chunks)})**:\n" if idx > 0 else "📄 **Content**:\n"
+            bot.send_message(CHAT_ID, header + chunk, parse_mode="Markdown")
+    else:
+        bot.send_message(CHAT_ID, f"📄 **Content**:\n{clean_content}", parse_mode="Markdown")
+    
+    # Part 3: Call-to-action
+    part3 = (
         f"🕒 *Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
         f"👉 _Reply directly to this text to authorize or apply custom edits._"
     )
-    
-    bot.send_message(CHAT_ID, telegram_ux_body, parse_mode="Markdown" if "```" not in telegram_ux_body else None)
+    bot.send_message(CHAT_ID, part3, parse_mode="Markdown")
 
 
 # NEW: Manual Breaking News Injector
@@ -239,7 +257,7 @@ def handle_manual_injection(message):
         summary = re.search(r'Summary:\s*(.+)', text, re.IGNORECASE | re.DOTALL).group(1).strip()
         
         # Get appropriate fallback image directly since there's no RSS feed
-        raw_img_source = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop" if category.lower() != "sports" else "https://images.unsplash.com/photo-15080986827[...]"
+        raw_img_source = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop" if category.lower() != "sports" else "https://images.unsplash.com/photo-15080986827[...]
         optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title)
         
         with queue_lock:

@@ -37,8 +37,8 @@ atexit.register(release_lock)
 POLITICS_API_KEY = "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL"
 POLITICS_AGENT_ID = "ag_019e4724fb8c725db14acb1aaa4cb658"
 
-SPORTS_API_KEY = "ag_019e45b719e176868d85da1af41d24ae"
-SPORTS_AGENT_ID = "ag_019e45b719e176868d85da1af41d24ae"
+SPORTS_API_KEY = "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL"
+SPORTS_AGENT_ID = "ag_019e47c1582372a2a31331f84c76ed54"
 
 cloudinary.config(
     cloud_name="dttmavamx",
@@ -90,21 +90,40 @@ def extract_image_url(entry, category):
 
 def upload_to_cloudinary(url_source, title_seed):
     try:
+        # 1. Clean the URL in case it has spaces or missing protocols
+        url_source = url_source.strip().replace(" ", "%20")
+        if url_source.startswith("//"):
+            url_source = "https:" + url_source
+            
         clean_id = "".join(c for c in title_seed if c.isalnum() or c in (" ", "_", "-")).strip()[:40]
         public_id = f"discover_{int(datetime.now().timestamp())}_{clean_id.replace(' ', '_')}"
+        temp_image_path = f"/tmp/{public_id}.jpg"
         
-        # Enforcing minimum width & height transformations to match 1200 x 800 and above
-        response = cloudinary.uploader.upload(
-            url_source,
+        # 2. Download the image locally first. News sites often block Cloudinary's servers (403 Forbidden).
+        # Downloading it via the GitHub Action with a standard User-Agent bypasses this block.
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        req = urllib.request.Request(url_source, headers=headers)
+        
+        with urllib.request.urlopen(req, timeout=15) as response, open(temp_image_path, 'wb') as out_file:
+            out_file.write(response.read())
+        
+        # 3. Upload the locally saved image to Cloudinary
+        upload_response = cloudinary.uploader.upload(
+            temp_image_path,
             public_id=public_id,
             folder="discover_images",
             transformation=[
                 {"width": 1200, "height": 800, "crop": "fill", "gravity": "auto"}
             ]
         )
-        return response.get("secure_url")
+        
+        # 4. Clean up the temporary file
+        if os.path.exists(temp_image_path):
+            os.remove(temp_image_path)
+            
+        return upload_response.get("secure_url")
     except Exception as e:
-        print(f"⚠️ Cloudinary Error: {e}. Cascading to raw feed source.")
+        print(f"⚠️ Cloudinary/Download Error for {url_source}: {e}. Cascading to raw feed source.")
         return url_source
 
 # --- STAGE 2: CATEGORY ROUTED MISTRAL API CALLS ---
@@ -207,12 +226,11 @@ def process_and_save_item(item_data):
 def execute_feed_crawl():
     print(f"🕒 Pipeline Execution Initiated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    has_error = False # Added boolean to track if any feed fails
+    has_error = False
     
-    # Fix: Removed the markdown formatting brackets []() around the URLs
     sources = [
-        {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
-        {"url": "https://www.vanguardngr.com/category/politics/feed/", "category": "Politics"}
+        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
+        {"url": "[https://www.vanguardngr.com/category/politics/feed/](https://www.vanguardngr.com/category/politics/feed/)", "category": "Politics"}
     ]
     
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -261,7 +279,7 @@ def execute_feed_crawl():
                 
         except Exception as e:
             print(f"❌ Feed processing exception on {source['category']}: {e}")
-            has_error = True # Flag that an error occurred in this loop
+            has_error = True
             
     return has_error
 
@@ -269,7 +287,6 @@ if __name__ == "__main__":
     print("🚀 Waking up Automated News Pulse Scraper Machine...")
     pipeline_failed = execute_feed_crawl()
     
-    # Fix: Exit with status code 1 if errors occurred to crash GitHub Actions
     if pipeline_failed:
         print("🏁 Sequence complete with errors. Crashing Action.")
         sys.exit(1)

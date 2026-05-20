@@ -5,7 +5,9 @@ on:
     branches:
       - main
   schedule:
-    # Runs at 8:00, 9:40, 12:40, 15:40, 18:40 UTC (Which maps exactly to your 5 WAT times)
+    # 12:05 AM WAT (which is 11:05 PM UTC) - For your immediate test run
+    - cron: '5 23 * * *'
+    # Your standard daily schedule (Runs at 7:40, 10:40, 13:40, 16:40, 19:40 WAT)
     - cron: '40 6,9,12,15,18 * * *'
   workflow_dispatch:
 
@@ -34,7 +36,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install feedparser requests beautifulsoup4 google-genai pyTelegramBotAPI PyGithub cloudinary apscheduler boto3
+          # Removed old Telegram/AWS bloat and added the required mistralai package
+          pip install feedparser beautifulsoup4 cloudinary mistralai
 
       - name: Run News Crawl
         env:

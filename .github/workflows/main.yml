@@ -40,6 +40,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_NAME: ${{ github.repository }}
+        timeout-minutes: 25
         run: |
           python main.py || (echo "Python script failed!" && exit 1)
 

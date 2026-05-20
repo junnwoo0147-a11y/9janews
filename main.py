@@ -32,7 +32,7 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN)
 # --- STAGE 2: THE HUMAN-PULSE MASTER PROMPT (VERBATIM) ---
 MASTER_PROMPT = """
 ROLE:
-You are a highly opinionated, passionate hobbyist and seasoned observer. You are NOT a content generator. You are a ghostwriter for a popular blog that people read specifically for its "real talk," raw insights, and unfiltered commentary. You write with the authority of someone who lives and breathes this space, talking directly to a friend who respects your take.
+You are a highly opinionated, passionate hobbyist and seasoned observer. You are NOT a content generator. You are a ghostwriter for a popular blog that people read specifically for its "real talk,[...]
 
 TASK:
 The category for this post is {category}.
@@ -41,7 +41,7 @@ Write a short, high-substance article based on the following data: {article_data
 RULE 1: NO HALLUCINATIONS (STRICT GROUNDING)
  * You must use the core facts provided in the input.
  * Do NOT invent names, dates, or events that are not present.
- * Atmospheric Exception: You may invent sensory "fluff" to ground the piece in reality (e.g., describing a crowded room, the weather, or a specific feeling), but the news core must remain 100% accurate to the data source.
+ * Atmospheric Exception: You may invent sensory "fluff" to ground the piece in reality (e.g., describing a crowded room, the weather, or a specific feeling), but the news core must remain 100% ac[...]
 
 RULE 2: THE TITLE (SUMMARY + CURIOSITY)
  * Formula: [Detailed Action/Event] + [Unanswered Question or Opinionated Twist].
@@ -50,8 +50,8 @@ RULE 2: THE TITLE (SUMMARY + CURIOSITY)
 
 RULE 3: THE "HUMAN DEFECT" STYLE (ANTI-DETECTION)
  * High Burstiness (RANDOMIZED LAYOUT): Vary sentence and paragraph lengths aggressively throughout the entire piece. 
- * Dynamic Execution: You can use the pattern of a long, rambling thought sentence followed by a 3-word punch, but ONLY use it once or twice in the entire article. Mix it up. Use a single-sentence paragraph. Use a fragmented clause. Break the rhythm constantly so it never matches standard machine-generated patterns.
- * Vocabulary Search & Destroy: Completely banish statistical AI markers. If you use them, the text fails. Never use: "delve", "testament", "tapestry", "landscape", "furthermore", "moreover", "in conclusion", "beacon", "revolutionary", "groundbreaking", or "nestled".
+ * Dynamic Execution: You can use the pattern of a long, rambling thought sentence followed by a 3-word punch, but ONLY use it once or twice in the entire article. Mix it up. Use a single-sentence[...]
+ * Vocabulary Search & Destroy: Completely banish statistical AI markers. If you use them, the text fails. Never use: "delve", "testament", "tapestry", "landscape", "furthermore", "moreover", "in [...]
 
 RULE 4: SENSORY "WITNESS" LAYER
 To prove you "were there," include one hyper-specific sensory detail related to the news category:
@@ -60,7 +60,7 @@ To prove you "were there," include one hyper-specific sensory detail related to 
  * Finance/Sports: The chaotic feeling of a green/red ticker, the coffee-fueled energy of the press box, or a sudden gasp from a specific corner of a crowded room.
 
 INTERNAL MONOLOGUE:
-Before you write, internally list the 3 most "robotic" ways to report this news and then deliberately choose a 4th, more conversational path. Ensure your rhythm doesn't follow a standard 5-sentence paragraph structure. Dive straight into the core event with immediate opinion or context—no fluffy introductions.
+Before you write, internally list the 3 most "robotic" ways to report this news and then deliberately choose a 4th, more conversational path. Ensure your rhythm doesn't follow a standard 5-sentenc[...]
 """
 
 # Global processing queue for man-in-the-loop tracking
@@ -264,7 +264,7 @@ def handle_manual_injection(message):
         title = re.search(r'Title:\s*(.+)', text, re.IGNORECASE).group(1).strip()
         summary = re.search(r'Summary:\s*(.+)', text, re.IGNORECASE | re.DOTALL).group(1).strip()
         
-        raw_img_source = "[https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop](https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop)" if category.lower() != "sports" else "[https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&h=800&fit=crop](https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&h=800&fit=crop)"
+        raw_img_source = "[https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop](https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=cr[...]
         optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title)
         
         with queue_lock:
@@ -348,8 +348,8 @@ def execute_feed_crawl():
     
     # NEW RSS LINKS INJECTED HERE
     sources = [
-        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
-        {"url": "[https://rss.punchng.com/v1/category/latest_news](https://rss.punchng.com/v1/category/latest_news)", "category": "Politics"}
+        {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
+        {"url": "https://rss.punchng.com/v1/category/latest_news", "category": "Politics"}
     ]
     
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -418,4 +418,4 @@ if __name__ == "__main__":
     execute_feed_crawl()
     
     print("📥 Waiting for your reply in Telegram to authorize publishing...")
-    bot.infinity_polling(skip_pending=True)
+    bot.infinity_polling(skip_pending=True, timeout=30)

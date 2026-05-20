@@ -228,8 +228,8 @@ def execute_feed_crawl():
     has_error = False
     
     sources = [
-        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
-        {"url": "[https://www.vanguardngr.com/category/politics/feed/](https://www.vanguardngr.com/category/politics/feed/)", "category": "Politics"}
+        {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
+        {"url": "https://www.vanguardngr.com/category/politics/feed/", "category": "Politics"}
     ]
     
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}

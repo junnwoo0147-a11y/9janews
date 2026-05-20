@@ -257,7 +257,7 @@ def handle_manual_injection(message):
         summary = re.search(r'Summary:\s*(.+)', text, re.IGNORECASE | re.DOTALL).group(1).strip()
         
         # Get appropriate fallback image directly since there's no RSS feed
-        raw_img_source = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop" if category.lower() != "sports" else "https://images.unsplash.com/photo-15080986827[...]
+        raw_img_source = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop" if category.lower() != "sports" else "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&h=800&fit=crop"
         optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title)
         
         with queue_lock:

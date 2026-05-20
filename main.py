@@ -207,9 +207,12 @@ def process_and_save_item(item_data):
 def execute_feed_crawl():
     print(f"🕒 Pipeline Execution Initiated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
+    has_error = False # Added boolean to track if any feed fails
+    
+    # Fix: Removed the markdown formatting brackets []() around the URLs
     sources = [
         {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
-        {"url": "[https://www.vanguardngr.com/category/politics/](https://www.vanguardngr.com/category/politics/)", "category": "Politics"}
+        {"url": "[https://www.vanguardngr.com/category/politics/feed/](https://www.vanguardngr.com/category/politics/feed/)", "category": "Politics"}
     ]
     
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -258,8 +261,17 @@ def execute_feed_crawl():
                 
         except Exception as e:
             print(f"❌ Feed processing exception on {source['category']}: {e}")
+            has_error = True # Flag that an error occurred in this loop
+            
+    return has_error
 
 if __name__ == "__main__":
     print("🚀 Waking up Automated News Pulse Scraper Machine...")
-    execute_feed_crawl()
-    print("🏁 Sequence complete. Exiting clean.")
+    pipeline_failed = execute_feed_crawl()
+    
+    # Fix: Exit with status code 1 if errors occurred to crash GitHub Actions
+    if pipeline_failed:
+        print("🏁 Sequence complete with errors. Crashing Action.")
+        sys.exit(1)
+    else:
+        print("🏁 Sequence complete. Exiting clean.")

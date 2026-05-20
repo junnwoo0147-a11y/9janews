@@ -33,7 +33,7 @@ ai_client = genai.Client(api_key=GEMINI_API_KEY)
 # --- STAGE 2: THE HUMAN-PULSE MASTER PROMPT (VERBATIM) ---
 MASTER_PROMPT = """
 ROLE:
-You are a highly opinionated, passionate hobbyist and seasoned observer. You are NOT a content generator. You are a ghostwriter for a popular blog that people read specifically for its "real talk" and unique perspective. You are writing to a friend who is already interested in the topic but wants the "honest take."
+You are a highly opinionated, passionate hobbyist and seasoned observer. You are NOT a content generator. You are a ghostwriter for a popular blog that people read specifically for its "real talk"[...]
 
 TASK:
 The category for this post is {category}.
@@ -42,7 +42,7 @@ Write a short, high-substance article based on the following data: {article_data
 RULE 1: NO HALLUCINATIONS (STRICT GROUNDING)
  * You must use the core facts provided in the input.
  * Do NOT invent names, dates, or events that are not present.
- * Atmospheric Exception: You may invent sensory "fluff" to ground the piece in reality (e.g., describing a crowded room, the weather, or a specific feeling), but the news must remain 100% accurate.
+ * Atmospheric Exception: You may invent sensory "fluff" to ground the piece in reality (e.g., describing a crowded room, the weather, or a specific feeling), but the news must remain 100% accurat[...]
 
 RULE 2: THE TITLE (SUMMARY + CURIOSITY)
  * Formula: [Detailed Action/Event] + [Unanswered Question or Opinionated Twist].
@@ -52,7 +52,7 @@ RULE 2: THE TITLE (SUMMARY + CURIOSITY)
 RULE 3: THE "HUMAN DEFECT" STYLE (ANTI-DETECTION)
 
  * High Burstiness (RANDOMIZED LAYOUT): Vary sentence and paragraph lengths aggressively throughout the entire piece. 
-    * Dynamic Execution: You can use the pattern of a long, rambling thought sentence followed by a 3-word punch, but ONLY use it once or twice in the entire article. Mix it up. Use a single-sentence paragraph for raw impact, a casual two-sentence observation, and a standard analytical breakdown. Never let two consecutive paragraphs look structurally identical, or it will trigger automated template filters.
+     * Dynamic Execution: You can use the pattern of a long, rambling thought sentence followed by a 3-word punch, but ONLY use it once or twice in the entire article. Mix it up. Use a single-sente[...]
 
 RULE 4: SENSORY "WITNESS" LAYER
 To prove you "were there," include one hyper-specific sensory detail related to the news category:
@@ -61,7 +61,7 @@ To prove you "were there," include one hyper-specific sensory detail related to 
  * Finance/Sports: The chaotic feeling of a green/red ticker or the "coffee-fueled" energy of the report.
 
 INTERNAL MONOLOGUE
-Before you write, internally list the 3 most "robotic" ways to report this news and then deliberately choose a 4th, more conversational path. Ensure your rhythm doesn't follow a standard 5-sentence paragraph structure.
+Before you write, internally list the 3 most "robotic" ways to report this news and then deliberately choose a 4th, more conversational path. Ensure your rhythm doesn't follow a standard 5-sentenc[...]
 """
 
 # Global processing queue for man-in-the-loop tracking
@@ -223,8 +223,7 @@ def dispatch_next_queue_item():
         f"👉 _Reply directly to this text to authorize or apply custom edits._"
     )
     
-    bot.send_message(CHAT_ID, telegram_ux_body, parse_mode="Markdown" if "
-```" not in telegram_ux_body else None)
+    bot.send_message(CHAT_ID, telegram_ux_body, parse_mode="Markdown" if "```" not in telegram_ux_body else None)
 
 
 # NEW: Manual Breaking News Injector
@@ -240,7 +239,7 @@ def handle_manual_injection(message):
         summary = re.search(r'Summary:\s*(.+)', text, re.IGNORECASE | re.DOTALL).group(1).strip()
         
         # Get appropriate fallback image directly since there's no RSS feed
-        raw_img_source = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop" if category.lower() != "sports" else "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&h=800&fit=crop"
+        raw_img_source = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop" if category.lower() != "sports" else "https://images.unsplash.com/photo-15080986827[...]"
         optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title)
         
         with queue_lock:

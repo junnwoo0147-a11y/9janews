@@ -4,28 +4,25 @@ import json
 import re
 import urllib.request
 from datetime import datetime
-import threading
 import time
 import feedparser
 from bs4 import BeautifulSoup
-import telebot
 import cloudinary
 import cloudinary.uploader
-import boto3
 import signal
 import atexit
+from mistralai import Mistral
 
 LOCK_FILE = "/tmp/9ja_news_bot.lock"
+JSON_FILE_PATH = "data/articles.json"
 
 def acquire_lock():
     if os.path.exists(LOCK_FILE):
-        # Check if lock is stale (older than 5 minutes)
         if time.time() - os.path.getmtime(LOCK_FILE) < 300:
             print("❌ Another bot instance is running. Exiting...")
             sys.exit(1)
         os.remove(LOCK_FILE)
     
-    # Create lock file
     with open(LOCK_FILE, 'w') as f:
         f.write(str(os.getpid()))
 
@@ -36,12 +33,12 @@ def release_lock():
 acquire_lock()
 atexit.register(release_lock)
 
-# --- STAGE 0: CREDENTIAL HARDCODING ---
-TELEGRAM_TOKEN = "8799270771:AAEUDhwhXaHq8cgfr1eIz9TdH9X3B0X604Y"
-CHAT_ID = "6108841631"
+# --- STAGE 1: DUAL MISTRAL & CLOUDINARY CREDENTIALS ---
+POLITICS_API_KEY = "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL"
+POLITICS_AGENT_ID = "ag_019e4724fb8c725db14acb1aaa4cb658"
 
-# Hardcoded AWS Bedrock Token (As requested. Remember to revoke this later!)
-os.environ["AWS_BEARER_TOKEN_BEDROCK"] = "ABSKQmVkcm9ja0FQSUtleS1qemdmLWF0LTQ0Mjg0NzMxODc2NjpobmV5N09sR29tdFliSXNnS1kxRHNUaDI3U2xRWDdmU2RRTm9kV3FzdTlNRzN6aC8zOFR2NXJZSGJydz0="
+SPORTS_API_KEY = "ag_019e45b719e176868d85da1af41d24ae"
+SPORTS_AGENT_ID = "ag_019e45b719e176868d85da1af41d24ae"
 
 cloudinary.config(
     cloud_name="dttmavamx",
@@ -49,59 +46,12 @@ cloudinary.config(
     api_secret="xydaLJiFP26S_BG_AgBbAmP7U00"
 )
 
-# Initialize Telegram SDK
-bot = telebot.TeleBot(TELEGRAM_TOKEN)
-
 def signal_handler(sig, frame):
-    print("🛑 Shutting down bot gracefully...")
-    # Stop any polling loops
-    if bot:
-        bot.stop_polling()
+    print("🛑 Shutting down pipeline gracefully...")
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
-
-# --- STAGE 2: THE HUMAN-PULSE MASTER PROMPT (VERBATIM) ---
-MASTER_PROMPT = """
-ROLE:
-You are a highly opinionated, passionate hobbyist and seasoned observer. You are NOT a content generator. You are a ghostwriter for a popular blog that people read specifically for its "real talk,[...]
-
-TASK:
-The category for this post is {category}.
-Write a short, high-substance article based on the following data: {article_data}
-
-RULE 1: NO HALLUCINATIONS (STRICT GROUNDING)
- * You must use the core facts provided in the input.
- * Do NOT invent names, dates, or events that are not present.
- * Atmospheric Exception: You may invent sensory "fluff" to ground the piece in reality (e.g., describing a crowded room, the weather, or a specific feeling), but the news core must remain 100% ac[...]
-
-RULE 2: THE TITLE (SUMMARY + CURIOSITY)
- * Formula: [Detailed Action/Event] + [Unanswered Question or Opinionated Twist].
- * Forbidden: Clickbait tropes ("You won't believe," "X things about...", "This changes everything").
- * Example (Tech): "The new Apple update finally fixes the battery drain, but the privacy trade-off feels like a step backward."
-
-RULE 3: THE "HUMAN DEFECT" STYLE (ANTI-DETECTION)
- * High Burstiness (RANDOMIZED LAYOUT): Vary sentence and paragraph lengths aggressively throughout the entire piece. 
- * Dynamic Execution: You can use the pattern of a long, rambling thought sentence followed by a 3-word punch, but ONLY use it once or twice in the entire article. Mix it up. Use a single-sentence[...]
- * Vocabulary Search & Destroy: Completely banish statistical AI markers. If you use them, the text fails. Never use: "delve", "testament", "tapestry", "landscape", "furthermore", "moreover", "in [...]
-
-RULE 4: SENSORY "WITNESS" LAYER
-To prove you "were there," include one hyper-specific sensory detail related to the news category:
- * Tech: The annoying fan noise of a laptop, a smudge on a glossy screen, or the tactical click of a worn-out mechanical keyboard.
- * General/Politics: The way people in the background were looking at their phones, a heavy silence in the room, or the dim buzz of fluorescent office lights.
- * Finance/Sports: The chaotic feeling of a green/red ticker, the coffee-fueled energy of the press box, or a sudden gasp from a specific corner of a crowded room.
-
-INTERNAL MONOLOGUE:
-Before you write, internally list the 3 most "robotic" ways to report this news and then deliberately choose a 4th, more conversational path. Ensure your rhythm doesn't follow a standard 5-sentenc[...]
-"""
-
-# Global processing queue for man-in-the-loop tracking
-PENDING_QUEUE = []
-CURRENT_PROCESSING_ITEM = None
-JSON_FILE_PATH = "data/articles.json"
-queue_lock = threading.Lock()
-
 
 def generate_slug(title):
     slug = title.lower().strip()
@@ -109,8 +59,6 @@ def generate_slug(title):
     slug = re.sub(r'[\s_-]+', '-', slug)
     return slug
 
-
-# Dynamic category-based fallback image
 def extract_image_url(entry, category):
     if 'media_content' in entry and len(entry.media_content) > 0:
         return entry.media_content[0].get('url')
@@ -140,12 +88,12 @@ def extract_image_url(entry, category):
     else:
         return "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop"
 
-
 def upload_to_cloudinary(url_source, title_seed):
     try:
         clean_id = "".join(c for c in title_seed if c.isalnum() or c in (" ", "_", "-")).strip()[:40]
         public_id = f"discover_{int(datetime.now().timestamp())}_{clean_id.replace(' ', '_')}"
         
+        # Enforcing minimum width & height transformations to match 1200 x 800 and above
         response = cloudinary.uploader.upload(
             url_source,
             public_id=public_id,
@@ -159,50 +107,41 @@ def upload_to_cloudinary(url_source, title_seed):
         print(f"⚠️ Cloudinary Error: {e}. Cascading to raw feed source.")
         return url_source
 
-
+# --- STAGE 2: CATEGORY ROUTED MISTRAL API CALLS ---
 def generate_ai_article(category, old_title, old_summary):
     article_data = f"TITLE: {old_title} | SUMMARY: {old_summary}"
     
-    system_instruction_wrapper = (
-        "Output your entire response inside standard HTML <p></p> paragraph blocks. "
-        "Do not include Markdown syntax, ```html containers, or outer page wrappers. "
-        "The first line of text must contain the Title, also wrapped in its own single <p> block."
+    # Structural processing wrapper via plain text formatting instructions
+    user_prompt = (
+        f"Output your response inside standard HTML <p></p> paragraph blocks. "
+        f"Do not include Markdown syntax or markdown code fences (like ```html). "
+        f"The first paragraph block must contain the generated Title.\n\n"
+        f"Category: {category}\nData: {article_data}"
     )
     
-    # Combine the creative prompt with the strict output format
-    combined_system_prompt = f"{MASTER_PROMPT}\n\n{system_instruction_wrapper}"
-    user_prompt = f"Category: {category}\nData: {article_data}"
-    
-    # Setup the Claude 3.5 Sonnet payload architecture for AWS Bedrock
-    payload = {
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 4000,
-        "temperature": 0.75,
-        "system": combined_system_prompt,
-        "messages": [
-            {
-                "role": "user",
-                "content": user_prompt
-            }
-        ]
-    }
-    
     try:
-        bedrock_runtime = boto3.client("bedrock-runtime", region_name="us-east-1")
-        model_id = "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
-        
-        response = bedrock_runtime.invoke_model(
-            modelId=model_id,
-            body=json.dumps(payload)
-        )
-        response_body = json.loads(response.get("body").read())
-        
-        return response_body["content"][0]["text"]
+        if category.lower() == "sports":
+            print(f"⚽ Dispatching to Mistral Sports Project Engine ({SPORTS_AGENT_ID})...")
+            client = Mistral(api_key=SPORTS_API_KEY)
+            response = client.agents.complete(
+                agent_id=SPORTS_AGENT_ID,
+                messages=[{"role": "user", "content": user_prompt}]
+            )
+        else:
+            print(f"🤖 Dispatching to Mistral Politics Project Engine ({POLITICS_AGENT_ID})...")
+            client = Mistral(api_key=POLITICS_API_KEY)
+            response = client.agents.complete(
+                agent_id=POLITICS_AGENT_ID,
+                messages=[{"role": "user", "content": user_prompt}]
+            )
+            
+        return response.choices[0].message.content
         
     except Exception as e:
-        return f"<p>Claude Bedrock Execution Error: {str(e)}</p>"
+        print(f"❌ Mistral API Execution Failure: {e}")
+        return f"<p>Mistral Execution Error: {str(e)}</p>"
 
-
+# --- STAGE 3: LIVE PREPENDING STORAGE ARCHITECTURE ---
 def prepend_to_json_file(article_object):
     try:
         os.makedirs(os.path.dirname(JSON_FILE_PATH), exist_ok=True)
@@ -217,48 +156,35 @@ def prepend_to_json_file(article_object):
             existing_data = []
             
         if not isinstance(existing_data, list):
-            print("❌ Error: Existing JSON structure is not a list. Aborting.")
+            print("❌ Error: Existing JSON structure is corrupted or not a list. Aborting.")
             return False
                     
+        # Safely insert the payload array clean at index 0 (top of file)
         existing_data.insert(0, article_object)
         
         with open(JSON_FILE_PATH, "w", encoding="utf-8") as f:
             json.dump(existing_data, f, indent=2, ensure_ascii=False)
             
-        print(f"💾 Successfully prepended article: {article_object['slug']}")
+        print(f"💾 Successfully saved and prepended article: {article_object['slug']}")
         return True
     except Exception as e:
-        print(f"❌ Critical storage write error: {e}")
+        print(f"❌ Critical JSON storage write error: {e}")
         return False 
 
-
-def dispatch_next_queue_item():
-    global CURRENT_PROCESSING_ITEM
-    with queue_lock:
-        if not PENDING_QUEUE:
-            CURRENT_PROCESSING_ITEM = None
-            return
-
-        CURRENT_PROCESSING_ITEM = PENDING_QUEUE.pop(0)
-    
-    print(f"Processing candidate for Telegram validation: {CURRENT_PROCESSING_ITEM['old_title']}")
+def process_and_save_item(item_data):
+    print(f"Refining news item: {item_data['old_title']}")
     
     ai_output = generate_ai_article(
-        CURRENT_PROCESSING_ITEM["category"],
-        CURRENT_PROCESSING_ITEM["old_title"],
-        CURRENT_PROCESSING_ITEM["old_summary"]
+        item_data["category"],
+        item_data["old_title"],
+        item_data["old_summary"]
     )
     
-    CURRENT_PROCESSING_ITEM["ai_raw_output"] = ai_output
-    
+    # Strip down response layers safely
     paragraphs = re.findall(r'<p>(.*?)</p>', ai_output, re.DOTALL)
-    ai_title = paragraphs[0] if paragraphs else CURRENT_PROCESSING_ITEM["old_title"]
-    ai_content_only = "".join([f"<p>{p}</p>" for p in paragraphs[1:]]) if len(paragraphs) > 1 else ai_output
+    ai_title = paragraphs[0].strip() if paragraphs else item_data["old_title"]
+    ai_content_only = "".join([f"<p>{p.strip()}</p>" for p in paragraphs[1:]]) if len(paragraphs) > 1 else ai_output
 
-    CURRENT_PROCESSING_ITEM["extracted_title"] = ai_title
-    CURRENT_PROCESSING_ITEM["extracted_content"] = ai_content_only
-
-    # Build the article payload
     execution_time_marker = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
     clean_text_layer = re.sub(r'<[^>]*>', '', ai_content_only)
     
@@ -268,124 +194,22 @@ def dispatch_next_queue_item():
         "description": clean_text_layer[:147] + "...",
         "intro": clean_text_layer[:47] + "...",
         "content": ai_content_only,
-        "image": CURRENT_PROCESSING_ITEM["cloudinary_url"],
+        "image": item_data["cloudinary_url"],
         "datePublished": execution_time_marker,
         "dateModified": execution_time_marker,
-        "category": CURRENT_PROCESSING_ITEM["category"].lower(),
+        "category": item_data["category"].lower(),
         "trendingBoost": 3
     }
     
-    CURRENT_PROCESSING_ITEM["article_payload"] = article_payload
-    
-    # Send as JSON document to Telegram
-    json_payload = json.dumps(article_payload, indent=2, ensure_ascii=False)
-    
-    header_message = (
-        f"✨ **NEW ARTICLE READY FOR REVIEW**\n\n"
-        f"Category: `{article_payload['category']}`\n"
-        f"Timestamp: `{execution_time_marker}`\n\n"
-        f"📋 **JSON Data Below** (edit and send back):"
-    )
-    bot.send_message(CHAT_ID, header_message, parse_mode="Markdown")
-    
-    # Send JSON as code block
-    bot.send_message(CHAT_ID, f"```json\n{json_payload}\n```", parse_mode="Markdown")
-    
-    instruction_message = (
-        f"👉 **INSTRUCTIONS:**\n"
-        f"1️⃣ Copy the JSON above\n"
-        f"2️⃣ Edit any fields you want to change\n"
-        f"3️⃣ Send back the complete JSON to approve\n"
-        f"4️⃣ Or type `SKIP` to reject and move to next"
-    )
-    bot.send_message(CHAT_ID, instruction_message, parse_mode="Markdown")
+    prepend_to_json_file(article_payload)
 
-
-@bot.message_handler(func=lambda msg: msg.text and msg.text.startswith("Category:") and str(msg.chat.id) == CHAT_ID)
-def handle_manual_injection(message):
-    bot.reply_to(message, "🚨 **Manual Breaking News Received! Injecting into pipeline...**")
-    text = message.text
-    
-    try:
-        category = re.search(r'Category:\s*(.+)', text, re.IGNORECASE).group(1).strip()
-        title = re.search(r'Title:\s*(.+)', text, re.IGNORECASE).group(1).strip()
-        summary = re.search(r'Summary:\s*(.+)', text, re.IGNORECASE | re.DOTALL).group(1).strip()
-        
-        raw_img_source = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop"
-        optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title)
-        
-        with queue_lock:
-            PENDING_QUEUE.append({
-                "category": category,
-                "old_title": title,
-                "old_summary": summary,
-                "cloudinary_url": optimized_cloudinary_url
-            })
-            
-        if CURRENT_PROCESSING_ITEM is None:
-            dispatch_next_queue_item()
-            
-    except AttributeError:
-        bot.send_message(CHAT_ID, "❌ **Error parsing manual injection.** Ensure it contains 'Category:', 'Title:', and 'Summary:' on separate lines.")
-
-
-@bot.message_handler(func=lambda msg: not (msg.text and msg.text.startswith("Category:")))
-def process_user_approval_response(message):
-    global CURRENT_PROCESSING_ITEM
-    if str(message.chat.id) != CHAT_ID or not CURRENT_PROCESSING_ITEM:
-        return
-
-    user_input = message.text.strip()
-    
-    # Skip this article and move to next
-    if user_input.lower() == "skip":
-        bot.send_message(CHAT_ID, "⏭️ **Skipped. Moving to next article...**")
-        dispatch_next_queue_item()
-        return
-    
-    # Try to parse JSON
-    try:
-        edited_article = json.loads(user_input)
-        
-        # Validate JSON has required fields
-        required_fields = ["slug", "title", "description", "content", "image", "category"]
-        if not all(field in edited_article for field in required_fields):
-            bot.send_message(CHAT_ID, "❌ **Missing required fields in JSON.** Please include: slug, title, description, content, image, category")
-            return
-        
-        bot.send_message(CHAT_ID, "⚙️ **Processing your edits... Saving to database...**")
-        
-        # Update with user's edited version
-        article_payload = edited_article
-        
-    except json.JSONDecodeError:
-        bot.send_message(CHAT_ID, "❌ **Invalid JSON format.** Please send valid JSON or type `SKIP` to reject.")
-        return
-    
-    success = prepend_to_json_file(article_payload)
-    
-    if success:
-        bot.send_message(
-            CHAT_ID, 
-            f"✅ **Successfully Saved!**\n"
-            f"Slug: `{article_payload['slug']}`\n"
-            f"Title: `{article_payload['title']}`"
-        )
-        # Move to next article in queue
-        dispatch_next_queue_item()
-    else:
-        bot.send_message(CHAT_ID, "❌ **Error committing article to storage layer.**")
-
-
-# --- STAGE 1: CRAWLER (MODIFIED FOR EXACTLY 1 EACH) ---
+# --- STAGE 4: CRAWLER PIPELINE RUNNER ---
 def execute_feed_crawl():
-    global PENDING_QUEUE
-    print(f"🕒 Scheduled Crawl Triggered at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"🕒 Pipeline Execution Initiated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    # NEW RSS LINKS INJECTED HERE
     sources = [
-        {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
-        {"url": "https://www.vanguardngr.com/category/politics/", "category": "Politics"}
+        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
+        {"url": "[https://www.vanguardngr.com/category/politics/](https://www.vanguardngr.com/category/politics/)", "category": "Politics"}
     ]
     
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -395,8 +219,6 @@ def execute_feed_crawl():
         "transfers", "osimhen", "galatasaray", "arteta", "clash", "chelsea", "arsenal", 
         "manchester", "liverpool", "bale", "fifa", "uefa", "striker", "derby", "raya"
     ]
-
-    new_items = []
 
     for source in sources:
         try:
@@ -423,50 +245,21 @@ def execute_feed_crawl():
                 raw_img_source = extract_image_url(entry, source["category"])
                 optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title_clean)
                 
-                new_items.append({
+                current_item = {
                     "category": source["category"],
                     "old_title": title_clean,
                     "old_summary": summary_clean,
                     "cloudinary_url": optimized_cloudinary_url
-                })
+                }
+                
+                # Execute direct inline pipeline generation instantly
+                process_and_save_item(current_item)
                 saved_count += 1
                 
         except Exception as e:
-            print(f"❌ Feed processing exception: {e}")
+            print(f"❌ Feed processing exception on {source['category']}: {e}")
 
-    with queue_lock:
-        PENDING_QUEUE.extend(new_items)
-        
-    if CURRENT_PROCESSING_ITEM is None:
-        dispatch_next_queue_item()
-
-# --- STAGE 4: MAIN EXECUTION TRIGGER ---
 if __name__ == "__main__":
-    print("🚀 Waking up News Pulse Bot...")
-    
-    try:
-        bot.remove_webhook()
-        time.sleep(1)
-    except Exception as e:
-        pass
-        
-    print("🔍 Crawling RSS feeds for fresh news...")
+    print("🚀 Waking up Automated News Pulse Scraper Machine...")
     execute_feed_crawl()
-    
-    print("📥 Waiting for your Telegram edits...")
-    
-    # Auto-shutdown after 20 minutes to prevent overlapping instances
-    def auto_shutdown():
-        time.sleep(1200)  # 20 minutes
-        print("⏱️ Auto-shutdown timeout reached. Closing bot.")
-        bot.stop_polling()
-        sys.exit(0)
-    
-    shutdown_thread = threading.Thread(target=auto_shutdown, daemon=True)
-    shutdown_thread.start()
-    
-    try:
-        bot.polling(skip_pending=True, timeout=10, long_polling_timeout=10)
-    except Exception as e:
-        print(f"❌ Polling error: {e}")
-        sys.exit(1)
+    print("🏁 Sequence complete. Exiting clean.")

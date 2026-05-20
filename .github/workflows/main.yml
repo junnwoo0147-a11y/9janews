@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    # Runs at 7:00, 9:40, 12:40, 15:40, 18:40 UTC (Which maps exactly to your 5 WAT times)
+    # Runs at 8:00, 9:40, 12:40, 15:40, 18:40 UTC (Which maps exactly to your 5 WAT times)
     - cron: '40 6,9,12,15,18 * * *'
   workflow_dispatch:
 

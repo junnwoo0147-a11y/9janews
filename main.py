@@ -188,10 +188,8 @@ def generate_ai_article(category, old_title, old_summary):
     }
     
     try:
-        # Changed to Oregon region
-        bedrock_runtime = boto3.client("bedrock-runtime", region_name="us-west-2")
-        # Changed to an active Claude Sonnet cross-region inference profile identifier for Oregon
-        model_id = "us-west-2.anthropic.claude-sonnet-4-6"
+        bedrock_runtime = boto3.client("bedrock-runtime", region_name="us-east-1")
+        model_id = "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
         
         response = bedrock_runtime.invoke_model(
             modelId=model_id,
@@ -260,33 +258,47 @@ def dispatch_next_queue_item():
     CURRENT_PROCESSING_ITEM["extracted_title"] = ai_title
     CURRENT_PROCESSING_ITEM["extracted_content"] = ai_content_only
 
-    part1 = (
-        f"🔍 **OLD ARTICLE DATA CLASSIFIED AT:**\n"
-        f"Category: {CURRENT_PROCESSING_ITEM['category']}\n"
-        f"Title: {CURRENT_PROCESSING_ITEM['old_title']}\n"
-        f"Summary: {CURRENT_PROCESSING_ITEM['old_summary']}\n\n"
-        f"====================================\n\n"
-        f"✨ **NEW AI RECORD ENTRY**\n"
-        f"Title: {ai_title}"
+    # Build the article payload
+    execution_time_marker = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+    clean_text_layer = re.sub(r'<[^>]*>', '', ai_content_only)
+    
+    article_payload = {
+        "slug": generate_slug(ai_title),
+        "title": ai_title,
+        "description": clean_text_layer[:147] + "...",
+        "intro": clean_text_layer[:47] + "...",
+        "content": ai_content_only,
+        "image": CURRENT_PROCESSING_ITEM["cloudinary_url"],
+        "datePublished": execution_time_marker,
+        "dateModified": execution_time_marker,
+        "category": CURRENT_PROCESSING_ITEM["category"].lower(),
+        "trendingBoost": 3
+    }
+    
+    CURRENT_PROCESSING_ITEM["article_payload"] = article_payload
+    
+    # Send as JSON document to Telegram
+    json_payload = json.dumps(article_payload, indent=2, ensure_ascii=False)
+    
+    header_message = (
+        f"✨ **NEW ARTICLE READY FOR REVIEW**\n\n"
+        f"Category: `{article_payload['category']}`\n"
+        f"Timestamp: `{execution_time_marker}`\n\n"
+        f"📋 **JSON Data Below** (edit and send back):"
     )
-    bot.send_message(CHAT_ID, part1, parse_mode="Markdown")
+    bot.send_message(CHAT_ID, header_message, parse_mode="Markdown")
     
-    clean_content = re.sub(r'<[^>]*>', '', ai_content_only)
-    max_length = 4000
+    # Send JSON as code block
+    bot.send_message(CHAT_ID, f"```json\n{json_payload}\n```", parse_mode="Markdown")
     
-    if len(clean_content) > max_length:
-        chunks = [clean_content[i:i+max_length] for i in range(0, len(clean_content), max_length)]
-        for idx, chunk in enumerate(chunks):
-            header = f"📄 **Content (Part {idx+1}/{len(chunks)})**:\n" if idx > 0 else "📄 **Content**:\n"
-            bot.send_message(CHAT_ID, header + chunk, parse_mode="Markdown")
-    else:
-        bot.send_message(CHAT_ID, f"📄 **Content**:\n{clean_content}", parse_mode="Markdown")
-    
-    part3 = (
-        f"🕒 *Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
-        f"👉 _Reply directly to this text to authorize or apply custom edits._"
+    instruction_message = (
+        f"👉 **INSTRUCTIONS:**\n"
+        f"1️⃣ Copy the JSON above\n"
+        f"2️⃣ Edit any fields you want to change\n"
+        f"3️⃣ Send back the complete JSON to approve\n"
+        f"4️⃣ Or type `SKIP` to reject and move to next"
     )
-    bot.send_message(CHAT_ID, part3, parse_mode="Markdown")
+    bot.send_message(CHAT_ID, instruction_message, parse_mode="Markdown")
 
 
 @bot.message_handler(func=lambda msg: msg.text and msg.text.startswith("Category:") and str(msg.chat.id) == CHAT_ID)
@@ -299,8 +311,7 @@ def handle_manual_injection(message):
         title = re.search(r'Title:\s*(.+)', text, re.IGNORECASE).group(1).strip()
         summary = re.search(r'Summary:\s*(.+)', text, re.IGNORECASE | re.DOTALL).group(1).strip()
         
-        # Cleaned up formatting brackets from user text
-        raw_img_source = "[https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop](https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop)"
+        raw_img_source = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop"
         optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title)
         
         with queue_lock:
@@ -324,40 +335,32 @@ def process_user_approval_response(message):
     if str(message.chat.id) != CHAT_ID or not CURRENT_PROCESSING_ITEM:
         return
 
-    bot.reply_to(message, "⚙️ **Processing verification update... Updating target database...**")
-    
     user_input = message.text.strip()
     
-    final_title = CURRENT_PROCESSING_ITEM["extracted_title"]
-    final_content = CURRENT_PROCESSING_ITEM["extracted_content"]
+    # Skip this article and move to next
+    if user_input.lower() == "skip":
+        bot.send_message(CHAT_ID, "⏭️ **Skipped. Moving to next article...**")
+        dispatch_next_queue_item()
+        return
     
-    if user_input.lower() not in ("yes", "approve", "ok", "go", "publish"):
-        if "title:" in user_input.lower():
-            lines = user_input.split('\n')
-            t_line = [l for l in lines if l.lower().startswith("title:")]
-            if t_line:
-                final_title = t_line[0].replace("Title:", "").replace("title:", "").strip()
-            c_lines = [l for l in lines if not l.lower().startswith("title:")]
-            final_content = "\n".join(c_lines).strip()
-        else:
-            final_content = user_input
-
-    execution_time_marker = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-    
-    clean_text_layer = re.sub(r'<[^>]*>', '', final_content)
-    
-    article_payload = {
-        "slug": generate_slug(final_title),
-        "title": final_title,
-        "description": clean_text_layer[:147] + "...",
-        "intro": clean_text_layer[:47] + "...",
-        "content": final_content,
-        "image": CURRENT_PROCESSING_ITEM["cloudinary_url"],
-        "datePublished": execution_time_marker,
-        "dateModified": execution_time_marker,
-        "category": CURRENT_PROCESSING_ITEM["category"].lower(),
-        "trendingBoost": 3
-    }
+    # Try to parse JSON
+    try:
+        edited_article = json.loads(user_input)
+        
+        # Validate JSON has required fields
+        required_fields = ["slug", "title", "description", "content", "image", "category"]
+        if not all(field in edited_article for field in required_fields):
+            bot.send_message(CHAT_ID, "❌ **Missing required fields in JSON.** Please include: slug, title, description, content, image, category")
+            return
+        
+        bot.send_message(CHAT_ID, "⚙️ **Processing your edits... Saving to database...**")
+        
+        # Update with user's edited version
+        article_payload = edited_article
+        
+    except json.JSONDecodeError:
+        bot.send_message(CHAT_ID, "❌ **Invalid JSON format.** Please send valid JSON or type `SKIP` to reject.")
+        return
     
     success = prepend_to_json_file(article_payload)
     
@@ -366,15 +369,12 @@ def process_user_approval_response(message):
             CHAT_ID, 
             f"✅ **Successfully Saved!**\n"
             f"Slug: `{article_payload['slug']}`\n"
-            f"Time Logged: `{execution_time_marker}`"
+            f"Title: `{article_payload['title']}`"
         )
+        # Move to next article in queue
+        dispatch_next_queue_item()
     else:
-        bot.send_message(CHAT_ID, "❌ **Error committing dynamic JSON record change to storage layer.**")
-
-    # Forcefully shut down the script to signal GitHub Actions to save the JSON file
-    print("✅ Work complete. Shutting down script so GitHub can commit changes.")
-    bot.stop_polling()  
-    sys.exit(0)
+        bot.send_message(CHAT_ID, "❌ **Error committing article to storage layer.**")
 
 
 # --- STAGE 1: CRAWLER (MODIFIED FOR EXACTLY 1 EACH) ---
@@ -382,10 +382,10 @@ def execute_feed_crawl():
     global PENDING_QUEUE
     print(f"🕒 Scheduled Crawl Triggered at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    # Cleaned up formatting brackets from user text
+    # NEW RSS LINKS INJECTED HERE
     sources = [
-        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
-        {"url": "[https://rss.punchng.com/v1/category/latest_news](https://rss.punchng.com/v1/category/latest_news)", "category": "Politics"}
+        {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
+        {"url": "https://www.vanguardngr.com/category/politics/", "category": "Politics"}
     ]
     
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -453,5 +453,20 @@ if __name__ == "__main__":
     print("🔍 Crawling RSS feeds for fresh news...")
     execute_feed_crawl()
     
-    print("📥 Waiting for your reply in Telegram to authorize publishing...")
-    bot.polling(skip_pending=True, timeout=10, long_polling_timeout=10)
+    print("📥 Waiting for your Telegram edits...")
+    
+    # Auto-shutdown after 20 minutes to prevent overlapping instances
+    def auto_shutdown():
+        time.sleep(1200)  # 20 minutes
+        print("⏱️ Auto-shutdown timeout reached. Closing bot.")
+        bot.stop_polling()
+        sys.exit(0)
+    
+    shutdown_thread = threading.Thread(target=auto_shutdown, daemon=True)
+    shutdown_thread.start()
+    
+    try:
+        bot.polling(skip_pending=True, timeout=10, long_polling_timeout=10)
+    except Exception as e:
+        print(f"❌ Polling error: {e}")
+        sys.exit(1)

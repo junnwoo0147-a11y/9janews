@@ -11,14 +11,14 @@ from bs4 import BeautifulSoup
 import telebot
 import cloudinary
 import cloudinary.uploader
-from google import genai
-from google.genai import types
-from apscheduler.schedulers.background import BackgroundScheduler
+import boto3
 
 # --- STAGE 0: CREDENTIAL HARDCODING ---
 TELEGRAM_TOKEN = "8799270771:AAEUDhwhXaHq8cgfr1eIz9TdH9X3B0X604Y"
 CHAT_ID = "6108841631"
-GEMINI_API_KEY = "AIzaSyBkrOWIRv9_6cB879MSIbk_iJ3VwR0q5KY"
+
+# Hardcoded AWS Bedrock Token (As requested. Remember to revoke this later!)
+os.environ["AWS_BEARER_TOKEN_BEDROCK"] = "ABSKQmVkcm9ja0FQSUtleS1qemdmLWF0LTQ0Mjg0NzMxODc2NjpobmV5N09sR29tdFliSXNnS1kxRHNUaDI3U2xRWDdmU2RRTm9kV3FzdTlNRzN6aC8zOFR2NXJZSGJydz0="
 
 cloudinary.config(
     cloud_name="dttmavamx",
@@ -26,14 +26,13 @@ cloudinary.config(
     api_secret="xydaLJiFP26S_BG_AgBbAmP7U00"
 )
 
-# Initialize SDK Clients
+# Initialize Telegram SDK
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
-ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 # --- STAGE 2: THE HUMAN-PULSE MASTER PROMPT (VERBATIM) ---
 MASTER_PROMPT = """
 ROLE:
-You are a highly opinionated, passionate hobbyist and seasoned observer. You are NOT a content generator. You are a ghostwriter for a popular blog that people read specifically for its "real talk"[...]
+You are a highly opinionated, passionate hobbyist and seasoned observer. You are NOT a content generator. You are a ghostwriter for a popular blog that people read specifically for its "real talk," raw insights, and unfiltered commentary. You write with the authority of someone who lives and breathes this space, talking directly to a friend who respects your take.
 
 TASK:
 The category for this post is {category}.
@@ -42,26 +41,26 @@ Write a short, high-substance article based on the following data: {article_data
 RULE 1: NO HALLUCINATIONS (STRICT GROUNDING)
  * You must use the core facts provided in the input.
  * Do NOT invent names, dates, or events that are not present.
- * Atmospheric Exception: You may invent sensory "fluff" to ground the piece in reality (e.g., describing a crowded room, the weather, or a specific feeling), but the news must remain 100% accurat[...]
+ * Atmospheric Exception: You may invent sensory "fluff" to ground the piece in reality (e.g., describing a crowded room, the weather, or a specific feeling), but the news core must remain 100% accurate to the data source.
 
 RULE 2: THE TITLE (SUMMARY + CURIOSITY)
  * Formula: [Detailed Action/Event] + [Unanswered Question or Opinionated Twist].
- * Forbidden: Clickbait tropes ("You won't believe," "X things about...").
+ * Forbidden: Clickbait tropes ("You won't believe," "X things about...", "This changes everything").
  * Example (Tech): "The new Apple update finally fixes the battery drain, but the privacy trade-off feels like a step backward."
 
 RULE 3: THE "HUMAN DEFECT" STYLE (ANTI-DETECTION)
-
  * High Burstiness (RANDOMIZED LAYOUT): Vary sentence and paragraph lengths aggressively throughout the entire piece. 
-     * Dynamic Execution: You can use the pattern of a long, rambling thought sentence followed by a 3-word punch, but ONLY use it once or twice in the entire article. Mix it up. Use a single-sent[...]
+ * Dynamic Execution: You can use the pattern of a long, rambling thought sentence followed by a 3-word punch, but ONLY use it once or twice in the entire article. Mix it up. Use a single-sentence paragraph. Use a fragmented clause. Break the rhythm constantly so it never matches standard machine-generated patterns.
+ * Vocabulary Search & Destroy: Completely banish statistical AI markers. If you use them, the text fails. Never use: "delve", "testament", "tapestry", "landscape", "furthermore", "moreover", "in conclusion", "beacon", "revolutionary", "groundbreaking", or "nestled".
 
 RULE 4: SENSORY "WITNESS" LAYER
 To prove you "were there," include one hyper-specific sensory detail related to the news category:
- * Tech: The annoying fan noise of a laptop or the smudge on a screen.
- * General News: The way people in the background were looking at their phones or the "heavy silence" in the room.
- * Finance/Sports: The chaotic feeling of a green/red ticker or the "coffee-fueled" energy of the report.
+ * Tech: The annoying fan noise of a laptop, a smudge on a glossy screen, or the tactical click of a worn-out mechanical keyboard.
+ * General/Politics: The way people in the background were looking at their phones, a heavy silence in the room, or the dim buzz of fluorescent office lights.
+ * Finance/Sports: The chaotic feeling of a green/red ticker, the coffee-fueled energy of the press box, or a sudden gasp from a specific corner of a crowded room.
 
-INTERNAL MONOLOGUE
-Before you write, internally list the 3 most "robotic" ways to report this news and then deliberately choose a 4th, more conversational path. Ensure your rhythm doesn't follow a standard 5-sentenc[...]
+INTERNAL MONOLOGUE:
+Before you write, internally list the 3 most "robotic" ways to report this news and then deliberately choose a 4th, more conversational path. Ensure your rhythm doesn't follow a standard 5-sentence paragraph structure. Dive straight into the core event with immediate opinion or context—no fluffy introductions.
 """
 
 # Global processing queue for man-in-the-loop tracking
@@ -78,7 +77,7 @@ def generate_slug(title):
     return slug
 
 
-# UPDATED: Dynamic category-based fallback image
+# Dynamic category-based fallback image
 def extract_image_url(entry, category):
     if 'media_content' in entry and len(entry.media_content) > 0:
         return entry.media_content[0].get('url')
@@ -137,24 +136,44 @@ def generate_ai_article(category, old_title, old_summary):
         "The first line of text must contain the Title, also wrapped in its own single <p> block."
     )
     
-    combined_prompt = f"{MASTER_PROMPT}\n\n{system_instruction_wrapper}\nCategory: {category}\nData: {article_data}"
+    # Combine the creative prompt with the strict output format
+    combined_system_prompt = f"{MASTER_PROMPT}\n\n{system_instruction_wrapper}"
+    user_prompt = f"Category: {category}\nData: {article_data}"
+    
+    # Setup the Claude 3.5 Sonnet payload architecture for AWS Bedrock
+    payload = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 4000,
+        "temperature": 0.75,
+        "system": combined_system_prompt,
+        "messages": [
+            {
+                "role": "user",
+                "content": user_prompt
+            }
+        ]
+    }
     
     try:
-        response = ai_client.models.generate_content(
-            model="gemini-3.1-pro-preview",
-            contents=combined_prompt
+        bedrock_runtime = boto3.client("bedrock-runtime", region_name="us-east-1")
+        model_id = "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+        
+        response = bedrock_runtime.invoke_model(
+            modelId=model_id,
+            body=json.dumps(payload)
         )
-        return response.text if response.text else "Generation failed empty output."
+        response_body = json.loads(response.get("body").read())
+        
+        return response_body["content"][0]["text"]
+        
     except Exception as e:
-        return f"<p>Gemini Execution Error: {str(e)}</p>"
+        return f"<p>Claude Bedrock Execution Error: {str(e)}</p>"
 
 
 def prepend_to_json_file(article_object):
     try:
-        # Ensure the data directory exists
         os.makedirs(os.path.dirname(JSON_FILE_PATH), exist_ok=True)
         
-        # Load existing content
         if os.path.exists(JSON_FILE_PATH):
             with open(JSON_FILE_PATH, "r", encoding="utf-8") as f:
                 try:
@@ -164,16 +183,12 @@ def prepend_to_json_file(article_object):
         else:
             existing_data = []
             
-        # Ensure it is a list
         if not isinstance(existing_data, list):
-            # If your file was accidentally not a list, this prevents wiping it
             print("❌ Error: Existing JSON structure is not a list. Aborting.")
             return False
                     
-        # Add new article to the top (index 0)
         existing_data.insert(0, article_object)
         
-        # Save back to file
         with open(JSON_FILE_PATH, "w", encoding="utf-8") as f:
             json.dump(existing_data, f, indent=2, ensure_ascii=False)
             
@@ -210,8 +225,6 @@ def dispatch_next_queue_item():
     CURRENT_PROCESSING_ITEM["extracted_title"] = ai_title
     CURRENT_PROCESSING_ITEM["extracted_content"] = ai_content_only
 
-    # FIXED: Split message into parts to avoid Telegram 4096 char limit
-    # Part 1: Original article data
     part1 = (
         f"🔍 **OLD ARTICLE DATA CLASSIFIED AT:**\n"
         f"Category: {CURRENT_PROCESSING_ITEM['category']}\n"
@@ -223,12 +236,10 @@ def dispatch_next_queue_item():
     )
     bot.send_message(CHAT_ID, part1, parse_mode="Markdown")
     
-    # Part 2: AI content (split if necessary)
     clean_content = re.sub(r'<[^>]*>', '', ai_content_only)
     max_length = 4000
     
     if len(clean_content) > max_length:
-        # Split content into chunks
         chunks = [clean_content[i:i+max_length] for i in range(0, len(clean_content), max_length)]
         for idx, chunk in enumerate(chunks):
             header = f"📄 **Content (Part {idx+1}/{len(chunks)})**:\n" if idx > 0 else "📄 **Content**:\n"
@@ -236,7 +247,6 @@ def dispatch_next_queue_item():
     else:
         bot.send_message(CHAT_ID, f"📄 **Content**:\n{clean_content}", parse_mode="Markdown")
     
-    # Part 3: Call-to-action
     part3 = (
         f"🕒 *Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
         f"👉 _Reply directly to this text to authorize or apply custom edits._"
@@ -244,20 +254,17 @@ def dispatch_next_queue_item():
     bot.send_message(CHAT_ID, part3, parse_mode="Markdown")
 
 
-# NEW: Manual Breaking News Injector
 @bot.message_handler(func=lambda msg: msg.text and msg.text.startswith("Category:") and str(msg.chat.id) == CHAT_ID)
 def handle_manual_injection(message):
     bot.reply_to(message, "🚨 **Manual Breaking News Received! Injecting into pipeline...**")
     text = message.text
     
     try:
-        # Simple parsing of the manual payload
         category = re.search(r'Category:\s*(.+)', text, re.IGNORECASE).group(1).strip()
         title = re.search(r'Title:\s*(.+)', text, re.IGNORECASE).group(1).strip()
         summary = re.search(r'Summary:\s*(.+)', text, re.IGNORECASE | re.DOTALL).group(1).strip()
         
-        # Get appropriate fallback image directly since there's no RSS feed
-        raw_img_source = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop" if category.lower() != "sports" else "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&h=800&fit=crop"
+        raw_img_source = "[https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop](https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop)" if category.lower() != "sports" else "[https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&h=800&fit=crop](https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&h=800&fit=crop)"
         optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title)
         
         with queue_lock:
@@ -328,7 +335,10 @@ def process_user_approval_response(message):
     else:
         bot.send_message(CHAT_ID, "❌ **Error committing dynamic JSON record change to storage layer.**")
 
-    dispatch_next_queue_item()
+    # Forcefully shut down the script to signal GitHub Actions to save the JSON file
+    print("✅ Work complete. Shutting down script so GitHub can commit changes.")
+    bot.stop_polling()  
+    sys.exit(0)
 
 
 # --- STAGE 1: CRAWLER (MODIFIED FOR EXACTLY 1 EACH) ---
@@ -336,9 +346,10 @@ def execute_feed_crawl():
     global PENDING_QUEUE
     print(f"🕒 Scheduled Crawl Triggered at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
+    # NEW RSS LINKS INJECTED HERE
     sources = [
-        {"url": "https://www.skysports.com/rss/12040", "category": "Sports"},
-        {"url": "https://rss.punchng.com/feed/", "category": "Politics"}
+        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
+        {"url": "[https://rss.punchng.com/v1/category/latest_news](https://rss.punchng.com/v1/category/latest_news)", "category": "Politics"}
     ]
     
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -373,7 +384,6 @@ def execute_feed_crawl():
                     if not any(keyword in search_space for keyword in football_signals):
                         continue
                 
-                # UPDATED: Passing category to extract_image_url
                 raw_img_source = extract_image_url(entry, source["category"])
                 optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title_clean)
                 
@@ -394,18 +404,18 @@ def execute_feed_crawl():
     if CURRENT_PROCESSING_ITEM is None:
         dispatch_next_queue_item()
 
-
-    if success:
-        bot.send_message(
-            CHAT_ID, 
-            f"✅ **Successfully Saved!**\n"
-            f"Slug: `{article_payload['slug']}`\n"
-            f"Time Logged: `{execution_time_marker}`"
-        )
-    else:
-        bot.send_message(CHAT_ID, "❌ **Error committing dynamic JSON record change to storage layer.**")
-
-    # CHANGE THIS PART AT THE BOTTOM OF THE FUNCTION:
-    print("✅ Work complete. Shutting down script so GitHub can commit changes.")
-    bot.stop_polling()  # Stop listening
-    sys.exit(0)         # Force close the script with a success code
+# --- STAGE 4: MAIN EXECUTION TRIGGER ---
+if __name__ == "__main__":
+    print("🚀 Waking up News Pulse Bot...")
+    
+    try:
+        bot.remove_webhook()
+        time.sleep(1)
+    except Exception as e:
+        pass
+        
+    print("🔍 Crawling RSS feeds for fresh news...")
+    execute_feed_crawl()
+    
+    print("📥 Waiting for your reply in Telegram to authorize publishing...")
+    bot.infinity_polling(skip_pending=True)

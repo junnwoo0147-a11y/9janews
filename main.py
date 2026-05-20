@@ -90,7 +90,6 @@ def extract_image_url(entry, category):
 
 def upload_to_cloudinary(url_source, title_seed):
     try:
-        # 1. Clean the URL in case it has spaces or missing protocols
         url_source = url_source.strip().replace(" ", "%20")
         if url_source.startswith("//"):
             url_source = "https:" + url_source
@@ -99,15 +98,12 @@ def upload_to_cloudinary(url_source, title_seed):
         public_id = f"discover_{int(datetime.now().timestamp())}_{clean_id.replace(' ', '_')}"
         temp_image_path = f"/tmp/{public_id}.jpg"
         
-        # 2. Download the image locally first. News sites often block Cloudinary's servers (403 Forbidden).
-        # Downloading it via the GitHub Action with a standard User-Agent bypasses this block.
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         req = urllib.request.Request(url_source, headers=headers)
         
         with urllib.request.urlopen(req, timeout=15) as response, open(temp_image_path, 'wb') as out_file:
             out_file.write(response.read())
         
-        # 3. Upload the locally saved image to Cloudinary
         upload_response = cloudinary.uploader.upload(
             temp_image_path,
             public_id=public_id,
@@ -117,7 +113,6 @@ def upload_to_cloudinary(url_source, title_seed):
             ]
         )
         
-        # 4. Clean up the temporary file
         if os.path.exists(temp_image_path):
             os.remove(temp_image_path)
             
@@ -130,7 +125,6 @@ def upload_to_cloudinary(url_source, title_seed):
 def generate_ai_article(category, old_title, old_summary):
     article_data = f"TITLE: {old_title} | SUMMARY: {old_summary}"
     
-    # Structural processing wrapper via plain text formatting instructions
     user_prompt = (
         f"Output your response inside standard HTML <p></p> paragraph blocks. "
         f"Do not include Markdown syntax or markdown code fences (like ```html). "
@@ -158,7 +152,8 @@ def generate_ai_article(category, old_title, old_summary):
         
     except Exception as e:
         print(f"❌ Mistral API Execution Failure: {e}")
-        return f"<p>Mistral Execution Error: {str(e)}</p>"
+        # Fix: Return None instead of returning the error string so it doesn't get saved
+        return None
 
 # --- STAGE 3: LIVE PREPENDING STORAGE ARCHITECTURE ---
 def prepend_to_json_file(article_object):
@@ -178,7 +173,6 @@ def prepend_to_json_file(article_object):
             print("❌ Error: Existing JSON structure is corrupted or not a list. Aborting.")
             return False
                     
-        # Safely insert the payload array clean at index 0 (top of file)
         existing_data.insert(0, article_object)
         
         with open(JSON_FILE_PATH, "w", encoding="utf-8") as f:
@@ -199,7 +193,11 @@ def process_and_save_item(item_data):
         item_data["old_summary"]
     )
     
-    # Strip down response layers safely
+    # Fix: If ai_output is None (due to Mistral API error), abort saving
+    if not ai_output:
+        print("⚠️ Aborting save: AI failed to generate article content.")
+        return False
+    
     paragraphs = re.findall(r'<p>(.*?)</p>', ai_output, re.DOTALL)
     ai_title = paragraphs[0].strip() if paragraphs else item_data["old_title"]
     ai_content_only = "".join([f"<p>{p.strip()}</p>" for p in paragraphs[1:]]) if len(paragraphs) > 1 else ai_output
@@ -221,6 +219,7 @@ def process_and_save_item(item_data):
     }
     
     prepend_to_json_file(article_payload)
+    return True
 
 # --- STAGE 4: CRAWLER PIPELINE RUNNER ---
 def execute_feed_crawl():
@@ -229,8 +228,8 @@ def execute_feed_crawl():
     has_error = False
     
     sources = [
-        {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
-        {"url": "https://www.vanguardngr.com/category/politics/feed/", "category": "Politics"}
+        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
+        {"url": "[https://www.vanguardngr.com/category/politics/feed/](https://www.vanguardngr.com/category/politics/feed/)", "category": "Politics"}
     ]
     
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -273,9 +272,12 @@ def execute_feed_crawl():
                     "cloudinary_url": optimized_cloudinary_url
                 }
                 
-                # Execute direct inline pipeline generation instantly
-                process_and_save_item(current_item)
-                saved_count += 1
+                # Fix: Check if it saved successfully. If false, flag the error.
+                success = process_and_save_item(current_item)
+                if success:
+                    saved_count += 1
+                else:
+                    has_error = True
                 
         except Exception as e:
             print(f"❌ Feed processing exception on {source['category']}: {e}")

@@ -297,7 +297,7 @@ def handle_manual_injection(message):
         title = re.search(r'Title:\s*(.+)', text, re.IGNORECASE).group(1).strip()
         summary = re.search(r'Summary:\s*(.+)', text, re.IGNORECASE | re.DOTALL).group(1).strip()
         
-        raw_img_source = "[https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop](https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop)"
+        raw_img_source = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop"
         optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title)
         
         with queue_lock:
@@ -381,8 +381,8 @@ def execute_feed_crawl():
     
     # NEW RSS LINKS INJECTED HERE
     sources = [
-        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
-        {"url": "[https://rss.punchng.com/v1/category/latest_news](https://rss.punchng.com/v1/category/latest_news)", "category": "Politics"}
+        {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
+        {"url": "https://www.vanguardngr.com/category/politics/", "category": "Politics"}
     ]
     
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}

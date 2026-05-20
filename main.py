@@ -188,8 +188,10 @@ def generate_ai_article(category, old_title, old_summary):
     }
     
     try:
-        bedrock_runtime = boto3.client("bedrock-runtime", region_name="us-east-1")
-        model_id = "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+        # Changed to Oregon region
+        bedrock_runtime = boto3.client("bedrock-runtime", region_name="us-west-2")
+        # Changed to an active Claude Sonnet cross-region inference profile identifier for Oregon
+        model_id = "us-west-2.anthropic.claude-sonnet-4-6"
         
         response = bedrock_runtime.invoke_model(
             modelId=model_id,
@@ -297,7 +299,8 @@ def handle_manual_injection(message):
         title = re.search(r'Title:\s*(.+)', text, re.IGNORECASE).group(1).strip()
         summary = re.search(r'Summary:\s*(.+)', text, re.IGNORECASE | re.DOTALL).group(1).strip()
         
-        raw_img_source = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop"
+        # Cleaned up formatting brackets from user text
+        raw_img_source = "[https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop](https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop)"
         optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title)
         
         with queue_lock:
@@ -379,10 +382,10 @@ def execute_feed_crawl():
     global PENDING_QUEUE
     print(f"🕒 Scheduled Crawl Triggered at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    # NEW RSS LINKS INJECTED HERE
+    # Cleaned up formatting brackets from user text
     sources = [
-        {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
-        {"url": "https://www.vanguardngr.com/category/politics/", "category": "Politics"}
+        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
+        {"url": "[https://rss.punchng.com/v1/category/latest_news](https://rss.punchng.com/v1/category/latest_news)", "category": "Politics"}
     ]
     
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}

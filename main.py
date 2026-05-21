@@ -16,6 +16,10 @@ from mistralai import Mistral
 LOCK_FILE = "/tmp/9ja_news_bot.lock"
 JSON_FILE_PATH = "data/articles.json"
 
+# Retry configuration for API rate limiting
+MAX_RETRIES = 3
+INITIAL_BACKOFF = 2  # seconds
+
 def acquire_lock():
     if os.path.exists(LOCK_FILE):
         if time.time() - os.path.getmtime(LOCK_FILE) < 300:
@@ -60,13 +64,25 @@ def generate_slug(title):
     return slug
 
 def extract_image_url(entry, category):
+    """Extract image URL from feed entry with multiple fallback strategies"""
+    
+    # Strategy 1: Check media_content
     if 'media_content' in entry and len(entry.media_content) > 0:
-        return entry.media_content[0].get('url')
+        img_url = entry.media_content[0].get('url')
+        if img_url:
+            print(f"  ✓ Found image in media_content")
+            return img_url
+    
+    # Strategy 2: Check links for image type
     if 'links' in entry:
         for link in entry.links:
-            if 'image' in link.get('type', ''):
-                return link.get('href')
+            if 'image' in link.get('type', '').lower():
+                img_url = link.get('href')
+                if img_url:
+                    print(f"  ✓ Found image in links")
+                    return img_url
     
+    # Strategy 3: Parse HTML content for img tags
     html_target = ""
     if 'summary' in entry:
         html_target += entry.summary
@@ -79,50 +95,104 @@ def extract_image_url(entry, category):
             soup = BeautifulSoup(html_target, "html.parser")
             img = soup.find("img")
             if img and img.get("src"):
-                return img["src"]
-        except Exception:
-            pass
-            
+                img_url = img["src"]
+                print(f"  ✓ Found image in HTML content")
+                return img_url
+        except Exception as e:
+            print(f"  ⚠️ HTML parsing failed: {e}")
+    
+    # Fallback: Use category-specific default
     if category.lower() == "sports":
-        return "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&h=800&fit=crop"
+        fallback_url = "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&h=800&fit=crop"
+        print(f"  ⚠️ No image found in entry, using sports default")
     else:
-        return "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop"
+        fallback_url = "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&h=800&fit=crop"
+        print(f"  ⚠️ No image found in entry, using politics default")
+    
+    return fallback_url
 
-def upload_to_cloudinary(url_source, title_seed):
+def upload_to_cloudinary(url_source, title_seed, category):
+    """
+    Download image from URL and upload to Cloudinary with 1200x800 crop.
+    Returns the secure Cloudinary URL or None if failed.
+    """
     try:
         url_source = url_source.strip().replace(" ", "%20")
+        
+        # Handle protocol-relative URLs
         if url_source.startswith("//"):
             url_source = "https:" + url_source
-            
+        
+        print(f"  📥 Downloading: {url_source[:70]}...")
+        
+        # Prepare headers to avoid being blocked
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        # Download the image
+        req = urllib.request.Request(url_source, headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as response:
+            image_data = response.read()
+        
+        if not image_data:
+            print(f"  ❌ Downloaded image is empty")
+            return None
+        
+        # Generate unique public ID
         clean_id = "".join(c for c in title_seed if c.isalnum() or c in (" ", "_", "-")).strip()[:40]
         public_id = f"discover_{int(datetime.now().timestamp())}_{clean_id.replace(' ', '_')}"
         temp_image_path = f"/tmp/{public_id}.jpg"
         
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        req = urllib.request.Request(url_source, headers=headers)
+        # Save temporary image
+        with open(temp_image_path, 'wb') as out_file:
+            out_file.write(image_data)
         
-        with urllib.request.urlopen(req, timeout=15) as response, open(temp_image_path, 'wb') as out_file:
-            out_file.write(response.read())
+        file_size = os.path.getsize(temp_image_path)
+        print(f"  ✓ Downloaded: {file_size} bytes")
         
+        # Upload to Cloudinary with 1200x800 crop
+        print(f"  📤 Uploading to Cloudinary with 1200x800 crop...")
         upload_response = cloudinary.uploader.upload(
             temp_image_path,
             public_id=public_id,
-            folder="discover_images",
+            folder=f"discover_images/{category.lower()}",  # Separate folders by category
             transformation=[
-                {"width": 1200, "height": 800, "crop": "fill", "gravity": "auto"}
-            ]
+                {
+                    "width": 1200, 
+                    "height": 800, 
+                    "crop": "fill",  # Fill ensures 1200x800 exactly
+                    "gravity": "auto"  # Auto focuses on important parts
+                }
+            ],
+            overwrite=True,
+            resource_type="auto"
         )
         
+        # Cleanup temporary file
         if os.path.exists(temp_image_path):
             os.remove(temp_image_path)
-            
-        return upload_response.get("secure_url")
+        
+        cloudinary_url = upload_response.get("secure_url")
+        print(f"  ✓ Cloudinary URL: {cloudinary_url[:60]}...")
+        return cloudinary_url
+        
+    except urllib.error.HTTPError as e:
+        print(f"  ❌ HTTP Error {e.code}: {url_source}")
+        return None
+    except urllib.error.URLError as e:
+        print(f"  ❌ URL Error: {e.reason}")
+        return None
     except Exception as e:
-        print(f"⚠️ Cloudinary/Download Error for {url_source}: {e}. Cascading to raw feed source.")
-        return url_source
+        print(f"  ❌ Upload failed: {e}")
+        return None
 
-# --- STAGE 2: CATEGORY ROUTED MISTRAL API CALLS ---
+# --- STAGE 2: CATEGORY ROUTED MISTRAL API CALLS WITH RETRY ---
 def generate_ai_article(category, old_title, old_summary):
+    """
+    Generate AI article with retry logic for rate limiting.
+    Returns the AI-generated content or None if all retries fail.
+    """
     article_data = f"TITLE: {old_title} | SUMMARY: {old_summary}"
     
     user_prompt = (
@@ -132,31 +202,50 @@ def generate_ai_article(category, old_title, old_summary):
         f"Category: {category}\nData: {article_data}"
     )
     
-    try:
-        if category.lower() == "sports":
-            print(f"⚽ Dispatching to Mistral Sports Project Engine ({SPORTS_AGENT_ID})...")
-            client = Mistral(api_key=SPORTS_API_KEY)
-            response = client.agents.complete(
-                agent_id=SPORTS_AGENT_ID,
-                messages=[{"role": "user", "content": user_prompt}]
-            )
-        else:
-            print(f"🤖 Dispatching to Mistral Politics Project Engine ({POLITICS_AGENT_ID})...")
-            client = Mistral(api_key=POLITICS_API_KEY)
-            response = client.agents.complete(
-                agent_id=POLITICS_AGENT_ID,
-                messages=[{"role": "user", "content": user_prompt}]
-            )
+    for attempt in range(MAX_RETRIES):
+        try:
+            if category.lower() == "sports":
+                print(f"⚽ Dispatching to Mistral Sports Project Engine ({SPORTS_AGENT_ID})...")
+                client = Mistral(api_key=SPORTS_API_KEY)
+                response = client.agents.complete(
+                    agent_id=SPORTS_AGENT_ID,
+                    messages=[{"role": "user", "content": user_prompt}]
+                )
+            else:
+                print(f"🤖 Dispatching to Mistral Politics Project Engine ({POLITICS_AGENT_ID})...")
+                client = Mistral(api_key=POLITICS_API_KEY)
+                response = client.agents.complete(
+                    agent_id=POLITICS_AGENT_ID,
+                    messages=[{"role": "user", "content": user_prompt}]
+                )
             
-        return response.choices[0].message.content
-        
-    except Exception as e:
-        print(f"❌ Mistral API Execution Failure: {e}")
-        # Fix: Return None instead of returning the error string so it doesn't get saved
-        return None
+            ai_content = response.choices[0].message.content
+            print(f"  ✓ AI content generated successfully")
+            return ai_content
+            
+        except Exception as e:
+            error_str = str(e)
+            
+            # Check for rate limiting errors
+            if "429" in error_str or "capacity exceeded" in error_str or "service_tier_capacity_exceeded" in error_str:
+                if attempt < MAX_RETRIES - 1:
+                    backoff_time = INITIAL_BACKOFF * (2 ** attempt)
+                    print(f"  ⚠️ Rate limited (attempt {attempt + 1}/{MAX_RETRIES}). Waiting {backoff_time}s before retry...")
+                    time.sleep(backoff_time)
+                    continue
+                else:
+                    print(f"  ❌ Mistral API rate limit persists after {MAX_RETRIES} attempts")
+                    return None
+            else:
+                # Other errors - don't retry
+                print(f"  ❌ Mistral API error: {e}")
+                return None
+    
+    return None
 
 # --- STAGE 3: LIVE PREPENDING STORAGE ARCHITECTURE ---
 def prepend_to_json_file(article_object):
+    """Save article to JSON, prepending to the beginning of the list"""
     try:
         os.makedirs(os.path.dirname(JSON_FILE_PATH), exist_ok=True)
         
@@ -165,12 +254,13 @@ def prepend_to_json_file(article_object):
                 try:
                     existing_data = json.load(f)
                 except json.JSONDecodeError:
+                    print(f"  ⚠️ Corrupted JSON file, starting fresh")
                     existing_data = []
         else:
             existing_data = []
             
         if not isinstance(existing_data, list):
-            print("❌ Error: Existing JSON structure is corrupted or not a list. Aborting.")
+            print(f"  ❌ JSON structure error: not a list. Aborting save.")
             return False
                     
         existing_data.insert(0, article_object)
@@ -178,26 +268,49 @@ def prepend_to_json_file(article_object):
         with open(JSON_FILE_PATH, "w", encoding="utf-8") as f:
             json.dump(existing_data, f, indent=2, ensure_ascii=False)
             
-        print(f"💾 Successfully saved and prepended article: {article_object['slug']}")
+        print(f"  ✓ Article saved: {article_object['slug']}")
+        print(f"    - Category: {article_object['category']}")
+        print(f"    - Image: {article_object['image'][:60]}...")
         return True
+        
     except Exception as e:
-        print(f"❌ Critical JSON storage write error: {e}")
+        print(f"  ❌ JSON storage error: {e}")
         return False 
 
 def process_and_save_item(item_data):
-    print(f"Refining news item: {item_data['old_title']}")
+    """
+    Process a single feed item: download image, generate AI content, and save to JSON
+    """
+    print(f"\n🔄 Processing: {item_data['old_title'][:60]}...")
     
+    # Step 1: Upload image to Cloudinary
+    print(f"  [1/3] Image Processing:")
+    cloudinary_url = upload_to_cloudinary(
+        item_data["raw_image_url"],
+        item_data["old_title"],
+        item_data["category"]
+    )
+    
+    if not cloudinary_url:
+        print(f"  ⚠️ Image upload failed, skipping article")
+        return False
+    
+    item_data["cloudinary_url"] = cloudinary_url
+    
+    # Step 2: Generate AI content
+    print(f"  [2/3] AI Content Generation:")
     ai_output = generate_ai_article(
         item_data["category"],
         item_data["old_title"],
         item_data["old_summary"]
     )
     
-    # Fix: If ai_output is None (due to Mistral API error), abort saving
     if not ai_output:
-        print("⚠️ Aborting save: AI failed to generate article content.")
+        print(f"  ⚠️ AI generation failed, skipping article")
         return False
     
+    # Step 3: Parse and structure AI output
+    print(f"  [3/3] Structuring Article:")
     paragraphs = re.findall(r'<p>(.*?)</p>', ai_output, re.DOTALL)
     ai_title = paragraphs[0].strip() if paragraphs else item_data["old_title"]
     ai_content_only = "".join([f"<p>{p.strip()}</p>" for p in paragraphs[1:]]) if len(paragraphs) > 1 else ai_output
@@ -211,28 +324,32 @@ def process_and_save_item(item_data):
         "description": clean_text_layer[:147] + "...",
         "intro": clean_text_layer[:47] + "...",
         "content": ai_content_only,
-        "image": item_data["cloudinary_url"],
+        "image": item_data["cloudinary_url"],  # Use Cloudinary URL
         "datePublished": execution_time_marker,
         "dateModified": execution_time_marker,
         "category": item_data["category"].lower(),
         "trendingBoost": 3
     }
     
-    prepend_to_json_file(article_payload)
-    return True
+    success = prepend_to_json_file(article_payload)
+    return success
 
 # --- STAGE 4: CRAWLER PIPELINE RUNNER ---
 def execute_feed_crawl():
+    """Main crawler pipeline that processes feed sources"""
     print(f"🕒 Pipeline Execution Initiated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    has_error = False
+    has_critical_error = False
+    total_processed = 0
     
     sources = [
         {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
         {"url": "https://www.vanguardngr.com/category/politics/feed/", "category": "Politics"}
     ]
     
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
     
     football_signals = [
         "football", "premier league", "laliga", "serie", "bundesliga", "champions league", 
@@ -241,56 +358,75 @@ def execute_feed_crawl():
     ]
 
     for source in sources:
+        print(f"\n{'='*60}")
+        print(f"📰 Processing {source['category']} Feed")
+        print(f"{'='*60}")
+        
         try:
             req = urllib.request.Request(source["url"], headers=headers)
             with urllib.request.urlopen(req, timeout=15) as response:
                 feed_data = feedparser.parse(response.read())
             
             if not feed_data.entries:
+                print(f"⚠️ No entries found in {source['category']} feed")
                 continue
 
+            print(f"📊 Found {len(feed_data.entries)} entries in feed")
+            
             saved_count = 0
-            for entry in feed_data.entries:
-                if saved_count >= 1:
+            for entry_idx, entry in enumerate(feed_data.entries, 1):
+                if saved_count >= 1:  # Save 1 article per source
                     break
+                
+                print(f"\n  Entry {entry_idx}/{len(feed_data.entries)}")
                 
                 title_clean = entry.get('title', '')
                 summary_clean = entry.get('summary', '')
                 
+                # Sports category: filter by keywords
                 if source["category"] == "Sports":
                     search_space = (title_clean + " " + summary_clean).lower()
                     if not any(keyword in search_space for keyword in football_signals):
+                        print(f"  ⏭️  Skipped: Doesn't match sports keywords")
                         continue
                 
+                # Extract image URL
                 raw_img_source = extract_image_url(entry, source["category"])
-                optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title_clean)
                 
                 current_item = {
                     "category": source["category"],
                     "old_title": title_clean,
                     "old_summary": summary_clean,
-                    "cloudinary_url": optimized_cloudinary_url
+                    "raw_image_url": raw_img_source,
+                    "cloudinary_url": None
                 }
                 
-                # Fix: Check if it saved successfully. If false, flag the error.
+                # Process and save the item
                 success = process_and_save_item(current_item)
                 if success:
                     saved_count += 1
-                else:
-                    has_error = True
-                
+                    total_processed += 1
+                     
+        except urllib.error.URLError as e:
+            print(f"❌ Feed URL Error for {source['category']}: {e.reason}")
+            has_critical_error = True
         except Exception as e:
-            print(f"❌ Feed processing exception on {source['category']}: {e}")
-            has_error = True
-            
-    return has_error
+            print(f"❌ Feed processing exception for {source['category']}: {e}")
+            has_critical_error = True
+    
+    print(f"\n{'='*60}")
+    print(f"✅ Pipeline Complete - Processed: {total_processed} articles")
+    print(f"{'='*60}")
+    
+    return has_critical_error
 
 if __name__ == "__main__":
     print("🚀 Waking up Automated News Pulse Scraper Machine...")
     pipeline_failed = execute_feed_crawl()
     
     if pipeline_failed:
-        print("🏁 Sequence complete with errors. Crashing Action.")
+        print("🏁 Sequence complete WITH ERRORS. Check logs above.")
         sys.exit(1)
     else:
         print("🏁 Sequence complete. Exiting clean.")
+        sys.exit(0)

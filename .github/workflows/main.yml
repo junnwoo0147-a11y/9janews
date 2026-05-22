@@ -36,12 +36,24 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install feedparser beautifulsoup4 cloudinary mistralai
+          pip install feedparser beautifulsoup4 cloudinary mistralai python-dotenv
 
       - name: Run News Crawl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_NAME: ${{ github.repository }}
+          # Map GitHub Secrets to environment variables for the script
+          POLITICS_API_KEY: ${{ secrets.POLITICS_API_KEY }}
+          POLITICS_AGENT_ID: ${{ secrets.POLITICS_AGENT_ID }}
+          SPORTS_API_KEY: ${{ secrets.SPORTS_API_KEY }}
+          SPORTS_AGENT_ID: ${{ secrets.SPORTS_AGENT_ID }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          LOCK_FILE: "/tmp/9ja_news_bot.lock"
+          JSON_FILE_PATH: "data/articles.json"
+          MAX_RETRIES: 3
+          INITIAL_BACKOFF: 2
         timeout-minutes: 25
         run: |
           python main.py || (echo "Python script failed!" && exit 1)

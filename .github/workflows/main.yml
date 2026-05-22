@@ -1,4 +1,4 @@
-name: 9jaNews Pulse Wake & Run
+name: News Pulse Wake & Run
 
 on:
   # This triggers the bot immediately every time you push code to main

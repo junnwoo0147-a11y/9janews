@@ -191,52 +191,116 @@ def upload_to_cloudinary(url_source, title_seed):
         print(f"❌ CRASH: Cloudinary/Download Error for {url_source}: {e}")
         sys.exit(1)
 
-# --- STAGE 2: CATEGORY ROUTED MISTRAL API CALLS ---
+# --- STAGE 2: CATEGORY ROUTED MISTRAL API CALLS WITH CRITIC-AGENT LOOP ---
 def generate_ai_article(category, old_title, old_summary):
-    article_data = f"TITLE: {old_title} | SUMMARY: {old_summary}"
+    # Initialize the correct client key and agent ID
+    if category.lower() == "sports":
+        print(f"⚽ Initializing Mistral Sports Engine ({SPORTS_AGENT_ID})...")
+        api_key = SPORTS_API_KEY
+        agent_id = SPORTS_AGENT_ID
+    else:
+        print(f"🤖 Initializing Mistral Politics Engine ({POLITICS_AGENT_ID})...")
+        api_key = POLITICS_API_KEY
+        agent_id = POLITICS_AGENT_ID
+
+    client = Mistral(api_key=api_key)
     
-    user_prompt = (
-        f"Output your response inside standard HTML <p></p> paragraph blocks. "
-        f"Do not include Markdown syntax or markdown code fences (like ```html). "
-        f"The first paragraph block must contain the generated Title.\n\n"
-        f"Category: {category}\nData: {article_data}"
-    )
+    # Base configuration for the workflow loop
+    max_humanization_attempts = 3
+    target_score = 97
+    attempt = 0
     
-    max_retries = 3
-    base_wait = 2
-    
-    for attempt in range(max_retries):
+    # The initial message blueprint
+    current_messages = [{
+        "role": "user", 
+        "content": (
+            f"Output your response inside standard HTML <p></p> paragraph blocks. "
+            f"Do not include Markdown syntax or markdown code fences (like ```html). "
+            f"The first paragraph block must contain the generated Title.\n\n"
+            f"Category: {category}\nData: TITLE: {old_title} | SUMMARY: {old_summary}"
+        )
+    }]
+
+    while attempt < max_humanization_attempts:
+        attempt += 1
+        print(f"✍️ Generation Attempt {attempt}/{max_humanization_attempts} for category: {category}...")
+        
+        # Step 1: Run the generation via your custom Mistral Agent
         try:
-            if category.lower() == "sports":
-                print(f"⚽ Dispatching to Mistral Sports Project Engine ({SPORTS_AGENT_ID})...")
-                client = Mistral(api_key=SPORTS_API_KEY)
-                response = client.agents.complete(
-                    agent_id=SPORTS_AGENT_ID,
-                    messages=[{"role": "user", "content": user_prompt}]
-                )
-            else:
-                print(f"🤖 Dispatching to Mistral Politics Project Engine ({POLITICS_AGENT_ID})...")
-                client = Mistral(api_key=POLITICS_API_KEY)
-                response = client.agents.complete(
-                    agent_id=POLITICS_AGENT_ID,
-                    messages=[{"role": "user", "content": user_prompt}]
-                )
+            gen_response = client.agents.complete(
+                agent_id=agent_id,
+                messages=current_messages
+            )
+            generated_content = gen_response.choices[0].message.content
+        except Exception as e:
+            print(f"❌ CRASH: Mistral Generation Agent Failure: {e}")
+            sys.exit(1)
+            
+        # Step 2: Pass the generated text to the Critic for an audit
+        print("🧐 Dispatching generated text to the Humanization Critic...")
+        critic_prompt = f"""
+        You are an elite, highly cynical copy editor specializing in Google Discover optimization and anti-AI footprint detection.
+        Analyze the provided text for statistical AI footprints, uniform sentence rhythms, and banned vocabulary.
+
+        [CRITERIA FOR HUMANIZATION SCORE (1-100)]
+        1. Vocabulary (40 pts): Deduct 5 points for every instance of: "delve", "testament", "furthermore", "moreover", "landscape", "beacon", "unleash", "facade", "looming", "tapestry", "nestled", "ignites", "factional warfare".
+        2. Sentence Rhythm (40 pts): Deduct 10 points if three sentences in a row use identical line lengths or predictable grammatical patterns. True humans use "Sentence Whiplash"—mixing ultra-short 3-word sentences alongside longer structural descriptions.
+        3. Hook & Tone (20 pts): Deduct 10 points if the opening is overly theatrical, dramatic, or structured like an encyclopedic summary. It must read like crisp, detached, professional journalism.
+
+        [TEXT TO EVALUATE]
+        {generated_content}
+
+        [OUTPUT FORMAT]
+        You must return a valid JSON object matching this schema exactly. Do not add any conversational text before or after the JSON:
+        {{
+          "humanization_score": 95,
+          "ai_footprints_found": ["list of words or phrases that felt robotic"],
+          "rhythm_critique": "explicit instructions on which paragraphs or sentences have flat rhythms"
+        }}
+        """
+        
+        try:
+            # Using JSON mode via standard chat complete to parse clean performance scores
+            critic_response = client.chat.complete(
+                model="mistral-large-latest",
+                messages=[{"role": "user", "content": critic_prompt}],
+                response_format={"type": "json_object"}
+            )
+            
+            critic_json = json.loads(critic_response.choices[0].message.content)
+            score = int(critic_json.get("humanization_score", 0))
+            footprints = critic_json.get("ai_footprints_found", [])
+            critique = critic_json.get("rhythm_critique", "")
+            
+            print(f"📊 Critic Evaluation Complete | Score: {score}/100")
+            
+            # Step 3: Check if it clears the high bar
+            if score >= target_score:
+                print(f"🎉 Success! Article met humanization threshold ({score} >= {target_score}). Proceeding to storage.")
+                return generated_content
                 
-            return response.choices[0].message.content
+            print(f"⚠️ Score of {score} is below the target of {target_score}.")
+            print(f"🪓 Footprints found: {footprints}")
+            print(f"🔄 Preparing feedback loop context for rewrite...")
+            
+            # Append historical context to guide the next iteration without losing the original task rules
+            current_messages.append({"role": "assistant", "content": generated_content})
+            current_messages.append({
+                "role": "user",
+                "content": (
+                    f"Your previous draft scored a low {score}/100 on our humanization engine. You must rewrite it to fix these specific issues:\n"
+                    f"1. Completely strip out these robotic AI markers: {footprints}\n"
+                    f"2. Apply this rhythm update: {critique}\n\n"
+                    f"Crucial: Ensure the new output stays wrapped entirely in standard HTML <p></p> paragraph blocks with no markdown fences."
+                )
+            })
             
         except Exception as e:
-            error_msg = str(e)
-            # Check if it's a rate limit error (429)
-            if "429" in error_msg or "capacity" in error_msg.lower():
-                if attempt < max_retries - 1:
-                    wait_time = base_wait ** (attempt + 1)
-                    print(f"⏳ Rate limit hit. Retrying in {wait_time} seconds (attempt {attempt + 1}/{max_retries})...")
-                    time.sleep(wait_time)
-                    continue
-            
-            # For non-recoverable errors or final attempt, crash
-            print(f"❌ CRASH: Mistral API Execution Failure: {e}")
-            sys.exit(1)
+            print(f"⚠️ Critic evaluation failed or timed out: {e}. Falling back to initial generation to avoid stalling the pipeline.")
+            return generated_content
+
+    print(f"⚠️ Reached max loop limit ({max_humanization_attempts}) without hitting {target_score}. Processing highest quality variant available.")
+    return generated_content
 
 # --- STAGE 3: LIVE PREPENDING STORAGE ARCHITECTURE ---
 def prepend_to_json_file(article_object):
@@ -308,8 +372,8 @@ def execute_feed_crawl():
     print(f"🕒 Pipeline Execution Initiated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     sources = [
-        {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
-        {"url": "https://www.vanguardngr.com/category/politics/feed/", "category": "Politics"}
+        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
+        {"url": "[https://www.vanguardngr.com/category/politics/feed/](https://www.vanguardngr.com/category/politics/feed/)", "category": "Politics"}
     ]
     
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}

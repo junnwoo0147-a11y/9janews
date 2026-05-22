@@ -60,6 +60,7 @@ def generate_slug(title):
     return slug
 
 def extract_image_url(entry, category, title_clean):
+    # Check RSS feed sources first
     if 'media_content' in entry and len(entry.media_content) > 0:
         return entry.media_content[0].get('url')
     if 'links' in entry:
@@ -82,10 +83,58 @@ def extract_image_url(entry, category, title_clean):
                 return img["src"]
         except Exception:
             pass
+    
+    # FALLBACK: Visit the article page and extract image from there
+    try:
+        article_url = entry.get('link', '')
+        if article_url:
+            print(f"🔍 Fetching article page for image: {article_url}")
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            req = urllib.request.Request(article_url, headers=headers)
             
-    # STRICT CRASH: If no image is found in the RSS feed, crash the pipeline.
-    print(f"❌ CRASH: No image found in the feed for article: '{title_clean}' in {category}")
-    sys.exit(1)
+            with urllib.request.urlopen(req, timeout=15) as response:
+                page_html = response.read()
+            
+            page_soup = BeautifulSoup(page_html, "html.parser")
+            
+            # Try multiple methods to find the featured/main image
+            # Method 1: Look for og:image meta tag (most reliable)
+            og_image = page_soup.find("meta", property="og:image")
+            if og_image and og_image.get("content"):
+                print(f"✅ Found image via og:image meta tag")
+                return og_image.get("content")
+            
+            # Method 2: Look for featured image class (common in WordPress)
+            featured = page_soup.find("img", class_=lambda x: x and "featured" in x.lower())
+            if featured and featured.get("src"):
+                print(f"✅ Found image via featured class")
+                return featured.get("src")
+            
+            # Method 3: Find the first substantial image (skip small icons/logos)
+            for img in page_soup.find_all("img"):
+                src = img.get("src", "")
+                if src and ("article" in src.lower() or "post" in src.lower() or "content" in src.lower()):
+                    print(f"✅ Found image via content path")
+                    return src
+            
+            # Method 4: Just get the first reasonable image
+            for img in page_soup.find_all("img"):
+                src = img.get("src", "")
+                alt = img.get("alt", "").lower()
+                # Skip tiny images and obvious navigation elements
+                width = img.get("width")
+                height = img.get("height")
+                
+                if src and not any(skip in src.lower() for skip in ["logo", "icon", "button", "ads", "tracking"]):
+                    if not (width and height and (int(width or 0) < 100 or int(height or 0) < 100)):
+                        print(f"✅ Found image via general search")
+                        return src
+    except Exception as e:
+        print(f"⚠️  Failed to fetch article page for image: {e}")
+    
+    # If we still have no image, return None instead of crashing
+    print(f"⚠️  WARNING: No image found in feed or article page for: '{title_clean}' in {category}")
+    return None
 
 def upload_to_cloudinary(url_source, title_seed):
     try:
@@ -256,6 +305,12 @@ def execute_feed_crawl():
                         continue
                 
                 raw_img_source = extract_image_url(entry, source["category"], title_clean)
+                
+                # Skip articles without images
+                if raw_img_source is None:
+                    print(f"⏭️  Skipping article without image: {title_clean}")
+                    continue
+                
                 optimized_cloudinary_url = upload_to_cloudinary(raw_img_source, title_clean)
                 
                 current_item = {

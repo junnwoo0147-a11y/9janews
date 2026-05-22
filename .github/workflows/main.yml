@@ -1,4 +1,4 @@
-name: News Pulse Wake & Run
+name: New Pulse Wake & Run
 
 on:
   # This triggers the bot immediately every time you push code to main

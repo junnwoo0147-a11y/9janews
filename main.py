@@ -34,17 +34,37 @@ acquire_lock()
 atexit.register(release_lock)
 
 # --- STAGE 1: DUAL MISTRAL & CLOUDINARY CREDENTIALS ---
-POLITICS_API_KEY = os.getenv("POLITICS_API_KEY", "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL")
-POLITICS_AGENT_ID = os.getenv("POLITICS_AGENT_ID", "ag_019e4724fb8c725db14acb1aaa4cb658")
+POLITICS_API_KEY = os.getenv("POLITICS_API_KEY")
+POLITICS_AGENT_ID = os.getenv("POLITICS_AGENT_ID")
 
-SPORTS_API_KEY = os.getenv("SPORTS_API_KEY", "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL")
-SPORTS_AGENT_ID = os.getenv("SPORTS_AGENT_ID", "ag_019e47c1582372a2a31331f84c76ed54")
+SPORTS_API_KEY = os.getenv("SPORTS_API_KEY")
+SPORTS_AGENT_ID = os.getenv("SPORTS_AGENT_ID")
 
-cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME", "dttmavamx"),
-    api_key=os.getenv("CLOUDINARY_API_KEY", "336655594631775"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET", "xydaLJiFP26S_BG_AgBbAmP7U00")
-)
+# Validate that all required secrets are present
+required_secrets = {
+    "POLITICS_API_KEY": POLITICS_API_KEY,
+    "POLITICS_AGENT_ID": POLITICS_AGENT_ID,
+    "SPORTS_API_KEY": SPORTS_API_KEY,
+    "SPORTS_AGENT_ID": SPORTS_AGENT_ID,
+}
+
+missing_secrets = [key for key, value in required_secrets.items() if not value]
+if missing_secrets:
+    print(f"❌ CRASH: Missing required secrets: {', '.join(missing_secrets)}")
+    sys.exit(1)
+
+cloudinary_config = {
+    "cloud_name": os.getenv("CLOUDINARY_CLOUD_NAME"),
+    "api_key": os.getenv("CLOUDINARY_API_KEY"),
+    "api_secret": os.getenv("CLOUDINARY_API_SECRET")
+}
+
+cloudinary_missing = [key for key, value in cloudinary_config.items() if not value]
+if cloudinary_missing:
+    print(f"❌ CRASH: Missing required Cloudinary config: {', '.join(cloudinary_missing)}")
+    sys.exit(1)
+
+cloudinary.config(**cloudinary_config)
 
 def signal_handler(sig, frame):
     print("🛑 Shutting down pipeline gracefully...")

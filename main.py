@@ -243,9 +243,9 @@ def generate_ai_article(category, old_title, old_summary):
         Analyze the provided text for statistical AI footprints, uniform sentence rhythms, and banned vocabulary.
 
         [CRITERIA FOR HUMANIZATION SCORE (1-100)]
-        1. Vocabulary (40 pts): Deduct 5 points for every instance of: "delve", "testament", "furthermore", "moreover", "landscape", "beacon", "unleash", "facade", "looming", "tapestry", "nestled", "ignites", "factional warfare".
-        2. Sentence Rhythm (40 pts): Deduct 10 points if three sentences in a row use identical line lengths or predictable grammatical patterns. True humans use "Sentence Whiplash"—mixing ultra-short 3-word sentences alongside longer structural descriptions.
-        3. Hook & Tone (20 pts): Deduct 10 points if the opening is overly theatrical, dramatic, or structured like an encyclopedic summary. It must read like crisp, detached, professional journalism.
+        1. Vocabulary (40 pts): Deduct 5 points for every instance of: "delve", "testament", "furthermore", "moreover", "landscape", "beacon", "unleash", "facade", "looming", "tapestry", "nestled[...]
+        2. Sentence Rhythm (40 pts): Deduct 10 points if three sentences in a row use identical line lengths or predictable grammatical patterns. True humans use "Sentence Whiplash"—mixing ultr[...]
+        3. Hook & Tone (20 pts): Deduct 10 points if the opening is overly theatrical, dramatic, or structured like an encyclopedic summary. It must read like crisp, detached, professional journa[...]
 
         [TEXT TO EVALUATE]
         {generated_content}
@@ -372,8 +372,8 @@ def execute_feed_crawl():
     print(f"🕒 Pipeline Execution Initiated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     sources = [
-        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
-        {"url": "[https://www.vanguardngr.com/category/politics/feed/](https://www.vanguardngr.com/category/politics/feed/)", "category": "Politics"}
+        {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
+        {"url": "https://www.vanguardngr.com/category/politics/feed/", "category": "Politics"}
     ]
     
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}

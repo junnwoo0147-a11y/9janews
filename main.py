@@ -313,8 +313,8 @@ def execute_feed_crawl():
     total_processed = 0
     
     sources = [
-        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
-        {"url": "[https://www.vanguardngr.com/category/politics/feed/](https://www.vanguardngr.com/category/politics/feed/)", "category": "Politics"}
+        {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
+        {"url": "https://www.vanguardngr.com/category/politics/feed/", "category": "Politics"}
     ]
     
     headers = {

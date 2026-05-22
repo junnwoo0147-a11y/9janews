@@ -25,6 +25,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -61,4 +63,5 @@ jobs:
           git config --global user.email 'action@github.com'
           git add data/articles.json
           git commit -m "Auto-update: New curated article [skip ci]" || echo "No changes to commit"
+          git pull --rebase origin main
           git push

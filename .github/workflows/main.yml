@@ -1,15 +1,12 @@
 name: News Pulse Wake & Run
 
 on:
-  # This triggers the bot immediately every time you push code to main
   push:
     branches:
       - main
-  # This triggers the bot on your predefined schedule (UTC)
   schedule:
     - cron: '5 23 * * *'
     - cron: '40 6,9,12,15,18 * * *'
-  # This allows a manual override only if you ever need to debug
   workflow_dispatch:
 
 concurrency:
@@ -42,14 +39,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_NAME: ${{ github.repository }}
-          # Map GitHub Secrets to environment variables for the script
-          POLITICS_API_KEY: ${{ secrets.POLITICS_API_KEY }}
-          POLITICS_AGENT_ID: ${{ secrets.POLITICS_AGENT_ID }}
-          SPORTS_API_KEY: ${{ secrets.SPORTS_API_KEY }}
-          SPORTS_AGENT_ID: ${{ secrets.SPORTS_AGENT_ID }}
-          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          # HARDCODED PRODUCTION KEYS
+          POLITICS_API_KEY: "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL"
+          POLITICS_AGENT_ID: "ag_019e4724fb8c725db14acb1aaa4cb658"
+          SPORTS_API_KEY: "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL"
+          SPORTS_AGENT_ID: "ag_019e47c1582372a2a31331f84c76ed54"
+          CLOUDINARY_CLOUD_NAME: "dttmavqmx"
+          CLOUDINARY_API_KEY: "336655594631775"
+          CLOUDINARY_API_SECRET: "xydaLjiFP26S_BG_AgBbAmP7Uo0"
           LOCK_FILE: "/tmp/9ja_news_bot.lock"
           JSON_FILE_PATH: "data/articles.json"
           MAX_RETRIES: 3
@@ -63,6 +60,5 @@ jobs:
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
           git add data/articles.json
-          # Only commit if there are actual changes
           git commit -m "Auto-update: New curated article [skip ci]" || echo "No changes to commit"
           git push

@@ -12,13 +12,17 @@ import cloudinary.uploader
 import signal
 import atexit
 from mistralai import Mistral
+from dotenv import load_dotenv
 
-LOCK_FILE = "/tmp/9ja_news_bot.lock"
-JSON_FILE_PATH = "data/articles.json"
+# Load variables from .env file
+load_dotenv()
+
+LOCK_FILE = os.getenv("LOCK_FILE", "/tmp/9ja_news_bot.lock")
+JSON_FILE_PATH = os.getenv("JSON_FILE_PATH", "data/articles.json")
 
 # Retry configuration for API rate limiting
-MAX_RETRIES = 3
-INITIAL_BACKOFF = 2  # seconds
+MAX_RETRIES = int(os.getenv("MAX_RETRIES", 3))
+INITIAL_BACKOFF = int(os.getenv("INITIAL_BACKOFF", 2))
 
 def acquire_lock():
     if os.path.exists(LOCK_FILE):
@@ -37,17 +41,17 @@ def release_lock():
 acquire_lock()
 atexit.register(release_lock)
 
-# --- STAGE 1: DUAL MISTRAL & CLOUDINARY CREDENTIALS ---
-POLITICS_API_KEY = "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL"
-POLITICS_AGENT_ID = "ag_019e4724fb8c725db14acb1aaa4cb658"
+# --- STAGE 1: ENVIRONMENT CREDENTIAL LOADING ---
+POLITICS_API_KEY = os.getenv("POLITICS_API_KEY")
+POLITICS_AGENT_ID = os.getenv("POLITICS_AGENT_ID")
 
-SPORTS_API_KEY = "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL"
-SPORTS_AGENT_ID = "ag_019e47c1582372a2a31331f84c76ed54"
+SPORTS_API_KEY = os.getenv("SPORTS_API_KEY")
+SPORTS_AGENT_ID = os.getenv("SPORTS_AGENT_ID")
 
 cloudinary.config(
-    cloud_name="dttmavamx",
-    api_key="336655594631775",
-    api_secret="xydaLJiFP26S_BG_AgBbAmP7U00"
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET")
 )
 
 def signal_handler(sig, frame):
@@ -113,78 +117,44 @@ def extract_image_url(entry, category):
 
 def upload_to_cloudinary(url_source, title_seed, category):
     """
-    Download image from URL and upload to Cloudinary with 1200x800 crop.
-    Returns the secure Cloudinary URL or None if failed.
+    Uploads remote image URL directly to Cloudinary, forcing WebP optimization 
+    and a clean 1200x800 smart-gravity crop. No local temp files used.
     """
     try:
         url_source = url_source.strip().replace(" ", "%20")
-        
-        # Handle protocol-relative URLs
         if url_source.startswith("//"):
             url_source = "https:" + url_source
         
-        print(f"  📥 Downloading: {url_source[:70]}...")
-        
-        # Prepare headers to avoid being blocked
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-        
-        # Download the image
-        req = urllib.request.Request(url_source, headers=headers)
-        with urllib.request.urlopen(req, timeout=15) as response:
-            image_data = response.read()
-        
-        if not image_data:
-            print(f"  ❌ Downloaded image is empty")
-            return None
+        print(f"  📥 Passing URL source to Cloudinary server: {url_source[:65]}...")
         
         # Generate unique public ID
         clean_id = "".join(c for c in title_seed if c.isalnum() or c in (" ", "_", "-")).strip()[:40]
         public_id = f"discover_{int(datetime.now().timestamp())}_{clean_id.replace(' ', '_')}"
-        temp_image_path = f"/tmp/{public_id}.jpg"
         
-        # Save temporary image
-        with open(temp_image_path, 'wb') as out_file:
-            out_file.write(image_data)
-        
-        file_size = os.path.getsize(temp_image_path)
-        print(f"  ✓ Downloaded: {file_size} bytes")
-        
-        # Upload to Cloudinary with 1200x800 crop
-        print(f"  📤 Uploading to Cloudinary with 1200x800 crop...")
+        # Upload remote URL directly with format conversion and dimensions modification
         upload_response = cloudinary.uploader.upload(
-            temp_image_path,
+            url_source,
             public_id=public_id,
-            folder=f"discover_images/{category.lower()}",  # Separate folders by category
+            folder=f"discover_images/{category.lower()}",
+            format="webp",  # Converts to optimized WebP format automatically
             transformation=[
                 {
                     "width": 1200, 
                     "height": 800, 
-                    "crop": "fill",  # Fill ensures 1200x800 exactly
-                    "gravity": "auto"  # Auto focuses on important parts
+                    "crop": "fill",  
+                    "gravity": "auto"  
                 }
             ],
             overwrite=True,
             resource_type="auto"
         )
         
-        # Cleanup temporary file
-        if os.path.exists(temp_image_path):
-            os.remove(temp_image_path)
-        
         cloudinary_url = upload_response.get("secure_url")
-        print(f"  ✓ Cloudinary URL: {cloudinary_url[:60]}...")
+        print(f"  ✓ Cloudinary WebP URL: {cloudinary_url[:60]}...")
         return cloudinary_url
         
-    except urllib.error.HTTPError as e:
-        print(f"  ❌ HTTP Error {e.code}: {url_source}")
-        return None
-    except urllib.error.URLError as e:
-        print(f"  ❌ URL Error: {e.reason}")
-        return None
     except Exception as e:
-        print(f"  ❌ Upload failed: {e}")
+        print(f"  ❌ Direct Cloudinary upload/transformation failed: {e}")
         return None
 
 # --- STAGE 2: CATEGORY ROUTED MISTRAL API CALLS WITH RETRY ---
@@ -324,7 +294,7 @@ def process_and_save_item(item_data):
         "description": clean_text_layer[:147] + "...",
         "intro": clean_text_layer[:47] + "...",
         "content": ai_content_only,
-        "image": item_data["cloudinary_url"],  # Use Cloudinary URL
+        "image": item_data["cloudinary_url"],  
         "datePublished": execution_time_marker,
         "dateModified": execution_time_marker,
         "category": item_data["category"].lower(),
@@ -343,8 +313,8 @@ def execute_feed_crawl():
     total_processed = 0
     
     sources = [
-        {"url": "https://allnigeriasoccer.com/feed/", "category": "Sports"},
-        {"url": "https://www.vanguardngr.com/category/politics/feed/", "category": "Politics"}
+        {"url": "[https://allnigeriasoccer.com/feed/](https://allnigeriasoccer.com/feed/)", "category": "Sports"},
+        {"url": "[https://www.vanguardngr.com/category/politics/feed/](https://www.vanguardngr.com/category/politics/feed/)", "category": "Politics"}
     ]
     
     headers = {
@@ -358,6 +328,11 @@ def execute_feed_crawl():
     ]
 
     for source in sources:
+        # Rate Limiting Guard: Wait 2.5 minutes (150 seconds) before processing the next source
+        if total_processed > 0:
+            print(f"\n⏳ Delaying 2.5 minutes before hitting the next AI Engine to prevent rate limit errors...")
+            time.sleep(150)
+
         print(f"\n{'='*60}")
         print(f"📰 Processing {source['category']} Feed")
         print(f"{'='*60}")
@@ -371,41 +346,35 @@ def execute_feed_crawl():
                 print(f"⚠️ No entries found in {source['category']} feed")
                 continue
 
-            print(f"📊 Found {len(feed_data.entries)} entries in feed")
+            # Only look at the single most recent article entry
+            latest_entry = feed_data.entries[0]
+            print(f"📊 Evaluated the latest entry out of {len(feed_data.entries)} total items found.")
             
-            saved_count = 0
-            for entry_idx, entry in enumerate(feed_data.entries, 1):
-                if saved_count >= 1:  # Save 1 article per source
-                    break
-                
-                print(f"\n  Entry {entry_idx}/{len(feed_data.entries)}")
-                
-                title_clean = entry.get('title', '')
-                summary_clean = entry.get('summary', '')
-                
-                # Sports category: filter by keywords
-                if source["category"] == "Sports":
-                    search_space = (title_clean + " " + summary_clean).lower()
-                    if not any(keyword in search_space for keyword in football_signals):
-                        print(f"  ⏭️  Skipped: Doesn't match sports keywords")
-                        continue
-                
-                # Extract image URL
-                raw_img_source = extract_image_url(entry, source["category"])
-                
-                current_item = {
-                    "category": source["category"],
-                    "old_title": title_clean,
-                    "old_summary": summary_clean,
-                    "raw_image_url": raw_img_source,
-                    "cloudinary_url": None
-                }
-                
-                # Process and save the item
-                success = process_and_save_item(current_item)
-                if success:
-                    saved_count += 1
-                    total_processed += 1
+            title_clean = latest_entry.get('title', '')
+            summary_clean = latest_entry.get('summary', '')
+            
+            # Sports category: filter by keywords
+            if source["category"] == "Sports":
+                search_space = (title_clean + " " + summary_clean).lower()
+                if not any(keyword in search_space for keyword in football_signals):
+                    print(f"  ⏭️ Skipped latest: Headline doesn't match current sports filtering signals.")
+                    continue
+            
+            # Extract image URL
+            raw_img_source = extract_image_url(latest_entry, source["category"])
+            
+            current_item = {
+                "category": source["category"],
+                "old_title": title_clean,
+                "old_summary": summary_clean,
+                "raw_image_url": raw_img_source,
+                "cloudinary_url": None
+            }
+            
+            # Process and save the item
+            success = process_and_save_item(current_item)
+            if success:
+                total_processed += 1
                      
         except urllib.error.URLError as e:
             print(f"❌ Feed URL Error for {source['category']}: {e.reason}")

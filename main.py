@@ -34,16 +34,16 @@ acquire_lock()
 atexit.register(release_lock)
 
 # --- STAGE 1: DUAL MISTRAL & CLOUDINARY CREDENTIALS ---
-POLITICS_API_KEY = "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL"
-POLITICS_AGENT_ID = "ag_019e4724fb8c725db14acb1aaa4cb658"
+POLITICS_API_KEY = os.getenv("POLITICS_API_KEY", "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL")
+POLITICS_AGENT_ID = os.getenv("POLITICS_AGENT_ID", "ag_019e4724fb8c725db14acb1aaa4cb658")
 
-SPORTS_API_KEY = "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL"
-SPORTS_AGENT_ID = "ag_019e47c1582372a2a31331f84c76ed54"
+SPORTS_API_KEY = os.getenv("SPORTS_API_KEY", "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL")
+SPORTS_AGENT_ID = os.getenv("SPORTS_AGENT_ID", "ag_019e47c1582372a2a31331f84c76ed54")
 
 cloudinary.config(
-    cloud_name="dttmavamx",
-    api_key="336655594631775",
-    api_secret="xydaLJiFP26S_BG_AgBbAmP7U00"
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME", "dttmavamx"),
+    api_key=os.getenv("CLOUDINARY_API_KEY", "336655594631775"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET", "xydaLJiFP26S_BG_AgBbAmP7U00")
 )
 
 def signal_handler(sig, frame):

@@ -15,6 +15,7 @@ from mistralai import Mistral
 
 LOCK_FILE = "/tmp/9ja_news_bot.lock"
 JSON_FILE_PATH = "data/articles.json"
+BATCH_DELAY = 300  # 5 minutes delay between API calls
 
 def acquire_lock():
     if os.path.exists(LOCK_FILE):
@@ -201,28 +202,41 @@ def generate_ai_article(category, old_title, old_summary):
         f"Category: {category}\nData: {article_data}"
     )
     
-    try:
-        if category.lower() == "sports":
-            print(f"⚽ Dispatching to Mistral Sports Project Engine ({SPORTS_AGENT_ID})...")
-            client = Mistral(api_key=SPORTS_API_KEY)
-            response = client.agents.complete(
-                agent_id=SPORTS_AGENT_ID,
-                messages=[{"role": "user", "content": user_prompt}]
-            )
-        else:
-            print(f"🤖 Dispatching to Mistral Politics Project Engine ({POLITICS_AGENT_ID})...")
-            client = Mistral(api_key=POLITICS_API_KEY)
-            response = client.agents.complete(
-                agent_id=POLITICS_AGENT_ID,
-                messages=[{"role": "user", "content": user_prompt}]
-            )
+    max_retries = 3
+    base_wait = 2
+    
+    for attempt in range(max_retries):
+        try:
+            if category.lower() == "sports":
+                print(f"⚽ Dispatching to Mistral Sports Project Engine ({SPORTS_AGENT_ID})...")
+                client = Mistral(api_key=SPORTS_API_KEY)
+                response = client.agents.complete(
+                    agent_id=SPORTS_AGENT_ID,
+                    messages=[{"role": "user", "content": user_prompt}]
+                )
+            else:
+                print(f"🤖 Dispatching to Mistral Politics Project Engine ({POLITICS_AGENT_ID})...")
+                client = Mistral(api_key=POLITICS_API_KEY)
+                response = client.agents.complete(
+                    agent_id=POLITICS_AGENT_ID,
+                    messages=[{"role": "user", "content": user_prompt}]
+                )
+                
+            return response.choices[0].message.content
             
-        return response.choices[0].message.content
-        
-    except Exception as e:
-        # STRICT CRASH: If AI limits are hit or the API fails, crash.
-        print(f"❌ CRASH: Mistral API Execution Failure: {e}")
-        sys.exit(1)
+        except Exception as e:
+            error_msg = str(e)
+            # Check if it's a rate limit error (429)
+            if "429" in error_msg or "capacity" in error_msg.lower():
+                if attempt < max_retries - 1:
+                    wait_time = base_wait ** (attempt + 1)
+                    print(f"⏳ Rate limit hit. Retrying in {wait_time} seconds (attempt {attempt + 1}/{max_retries})...")
+                    time.sleep(wait_time)
+                    continue
+            
+            # For non-recoverable errors or final attempt, crash
+            print(f"❌ CRASH: Mistral API Execution Failure: {e}")
+            sys.exit(1)
 
 # --- STAGE 3: LIVE PREPENDING STORAGE ARCHITECTURE ---
 def prepend_to_json_file(article_object):
@@ -253,8 +267,13 @@ def prepend_to_json_file(article_object):
         print(f"❌ CRASH: Critical JSON storage write error: {e}")
         sys.exit(1)
 
-def process_and_save_item(item_data):
+def process_and_save_item(item_data, is_batch_item=False):
     print(f"Refining news item: {item_data['old_title']}")
+    
+    # Apply batch delay before processing (except for first item)
+    if is_batch_item:
+        print(f"⏳ Applying 5-minute batch delay before processing next article...")
+        time.sleep(BATCH_DELAY)
     
     ai_output = generate_ai_article(
         item_data["category"],
@@ -340,7 +359,8 @@ def execute_feed_crawl():
                     "cloudinary_url": optimized_cloudinary_url
                 }
                 
-                process_and_save_item(current_item)
+                # Apply batch delay for subsequent items (saved_count > 0)
+                process_and_save_item(current_item, is_batch_item=(saved_count > 0))
                 saved_count += 1
             
             # STRICT CRASH: If no matching articles were found/saved from this feed, crash.

@@ -1,4 +1,4 @@
-name: 9jaNews Pulse Wake & Run
+name: 9jaNew Pulse Wake & Run
 
 on:
   push:
@@ -35,17 +35,20 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install feedparser beautifulsoup4 cloudinary mistralai python-dotenv
+          pip install feedparser beautifulsoup4 cloudinary mistralai python-dotenv scikit-learn
 
       - name: Run News Crawl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_NAME: ${{ github.repository }}
           # HARDCODED PRODUCTION KEYS
-          POLITICS_API_KEY: "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL"
-          POLITICS_AGENT_ID: "ag_019e50f9dd637458ae6a0fb68dd402bc"
+          # --- FOOTBALL DATA CONFIGURATION ---
+          NEWS_API_KEY: "8cb982771d3d46edb6fdcd88ce5970ca"
           SPORTS_API_KEY: "zt7EHZL5BI5jIP4KqhqG5Riea9T7aJcL"
-          SPORTS_AGENT_ID: "ag_019e47c1582372a2a31331f84c76ed54"
+          SPORTS_AGENT_ID: "ag_019e520c7f72777e95624f1ae23395ad"
+          CRITIC_AGENT_ID: "ag_019e5c0c5a6d7630836ca1c45a499033"
+          VALIDATOR_AGENT_ID: "ag_019e70778fe770a1ada1d082b5f5b6f2"
+          NEWSDATA_KEY: "pub_4a4cb4b61fa34447a92102b4b27b16dc"
           CLOUDINARY_CLOUD_NAME: "dttmavqmx"
           CLOUDINARY_API_KEY: "336655594631775"
           CLOUDINARY_API_SECRET: "xydaLjiFP26S_BG_AgBbAmP7Uo0"
@@ -53,6 +56,13 @@ jobs:
           JSON_FILE_PATH: "data/articles.json"
           MAX_RETRIES: 3
           INITIAL_BACKOFF: 2
+          
+          # --- UPDATED RESIDENTIAL KEY POOL ---
+          SCRAPINGANT_KEY1: "3e350f1ac344494b849a01a0e1b8b927"
+          SCRAPINGANT_KEY2: "65a4ce0650f4454f9a8d0fb5f215091a"
+          SCRAPINGANT_KEY3: "25443975ef9a4d9aa6a5466763a42036"
+          SCRAPINGANT_KEY4: "021874f750724831a68eba862687f2b0"
+          
         timeout-minutes: 25
         run: |
           python main.py || (echo "Python script failed!" && exit 1)
@@ -63,5 +73,3 @@ jobs:
           git config --global user.email 'action@github.com'
           git add data/articles.json
           git commit -m "Auto-update: New curated article [skip ci]" || echo "No changes to commit"
-          git pull --rebase origin main
-          git push
